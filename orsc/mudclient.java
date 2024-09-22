@@ -17,6 +17,7 @@ import com.openrsc.interfaces.NCustomComponent;
 import com.openrsc.interfaces.misc.*;
 import com.openrsc.interfaces.misc.clan.Clan;
 import com.openrsc.interfaces.misc.party.Party;
+import orsc.buffers.RSBuffer;
 import orsc.buffers.RSBufferUtils;
 import orsc.buffers.RSBuffer_Bits;
 import orsc.enumerations.*;
@@ -39,6 +40,9 @@ import orsc.util.StringUtil;
 import orsc.util.Utils;
 
 import java.io.*;
+//import java.lang.management.ManagementFactory; //Commented out for Android
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -72,6 +76,10 @@ public final class mudclient implements Runnable {
 	private static final ArrayList<String> skillNamesArray = new ArrayList<String>();
 	private static String[] skillNameLong;
 	private static String[] skillNames;
+	private static String[] programArgs;
+	public void setProgramArgs(String[] progArgs) {
+		this.programArgs = progArgs;
+	}
 	public final int[] bankItemOnTab = new int[500];
 	public final int[] equipIconXLocations = new int[]{98, 98, 98, 153, 43, 43, 98, 98, 43, 153, 153};
 	public final int[] equipIconYLocations = new int[]{5, 85, 125, 85, 85, 165, 165, 45, 45, 45, 165};
@@ -14472,8 +14480,65 @@ public final class mudclient implements Runnable {
 						}
 						this.packetHandler.getClientStream().bufferBits.putInt(CLIENT_VERSION);
 						this.packetHandler.getClientStream().bufferBits.putString(getUsername());
-						// TODO: This strips special chars to underscore. We may want to in the future allow special chars.
-						this.packetHandler.getClientStream().bufferBits.putString(DataOperations.addCharacters(password, 20));
+						//TODO: Add encryption version as server variable sent to client so we can read it here instead of hardcoding it so server operators can control the encryption version.
+						byte loginEncryptionVersion = 1; //0 = none, 1 = RSA, 2 = SSL/TLS --TODO: maybe "RSA enhanced" with a larger key size?
+						this.packetHandler.getClientStream().bufferBits.putByte(loginEncryptionVersion);
+						//TODO: This strips special chars to underscore. We may want to in the future allow special chars.
+						//this.packetHandler.getClientStream().bufferBits.putString(DataOperations.addCharacters(password, 20));
+
+						RSBuffer rsBuffer = new RSBuffer(500);
+						rsBuffer.putString(DataOperations.addCharacters(password, 20));
+						rsBuffer.encodeWithRSA(MiscFunctions.RSA_EXPONENT, MiscFunctions.RSA_MODULUS);
+						this.packetHandler.getClientStream().bufferBits.writeBytes(rsBuffer.dataBuffer, rsBuffer.packetEnd);
+
+						boolean runningFromJar = false;
+						String jarName = "";
+						try {
+							String className = this.getClass().getName().replace('.', '/');
+							String classJar = this.getClass().getResource("/" + className + ".class") != null ? this.getClass().getResource("/" + className + ".class").toString() : "unknown";
+							if (classJar.startsWith("jar:")) {
+								runningFromJar = true;
+								String path = classJar.substring(4, classJar.indexOf("!"));
+								jarName = Paths.get(path).getFileName().toString();
+								if (jarName.length() > 19) {
+									jarName = jarName.substring(0, 19);
+								}
+							}
+						} catch (Exception e) {
+							e.printStackTrace();
+						}
+
+						//List<String> jvmArgs = ManagementFactory.getRuntimeMXBean().getInputArguments();
+						//String jvmArgsStr = String.join(" ", jvmArgs);
+
+						String programArgsStr = programArgs != null && programArgs.length > 1 ? String.join(" ", programArgs) : "";
+
+						String workingDir = System.getProperty("user.dir");
+						if (workingDir.length() > 38) {
+							String[] pathParts = workingDir.split(Pattern.quote(File.separator));
+							if (pathParts.length > 2) {
+								String truncatedPath = String.join(File.separator, Arrays.copyOfRange(pathParts, pathParts.length - 3, pathParts.length));
+								workingDir = truncatedPath;
+								if (workingDir.length() > 38) {
+									workingDir = truncatedPath.substring(truncatedPath.length() - 38);
+								}
+							}
+						}
+						if (jarName.isEmpty() && workingDir.length() < 2) {
+							workingDir = "Unknown";
+						}
+						String osName = System.getProperty("os.name").toLowerCase();
+						String javaVendor = System.getProperty("java.vendor").toLowerCase();
+						boolean isAndroid = osName.contains("android") || javaVendor.contains("android");
+						if (isAndroid) { 
+							workingDir = "Android";
+						}
+						//Ideally, we want this string to be less than 60 characters, and it must be less than 63 characters to be encrypted with RSA.
+						String loginDetails = String.format("%s/%s", workingDir, jarName);
+						RSBuffer rsDetailsBuffer = new RSBuffer(100);
+						rsDetailsBuffer.putString(loginDetails);
+						rsDetailsBuffer.encodeWithRSA(MiscFunctions.RSA_EXPONENT, MiscFunctions.RSA_MODULUS);
+						this.packetHandler.getClientStream().bufferBits.writeBytes(rsDetailsBuffer.dataBuffer, rsDetailsBuffer.packetEnd);
 
 						this.packetHandler.getClientStream().bufferBits.putLong(getUID());
 
