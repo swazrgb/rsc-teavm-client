@@ -53,6 +53,7 @@ import java.util.regex.Pattern;
 
 import static orsc.Config.*;
 import static orsc.multiclient.ClientPort.saveHideIp;
+import static orsc.ScaledWindow.ScalingAlgorithm;
 
 public final class mudclient implements Runnable {
 
@@ -288,6 +289,12 @@ public final class mudclient implements Runnable {
 	public int[] achievementProgress = new int[500];
 	public int showUiTab = 0;
 	public boolean topMouseMenuVisible = false;
+	public static ScalingAlgorithm scalingType = ScalingAlgorithm.INTEGER_SCALING;
+	public static float renderingScalar = 1.0f;
+	public static float newRenderingScalar = 1.0f;
+	public static boolean scalarChangedSinceLogin = false;
+	public static List<Float> integerScalars = null;
+	public static List<Float> interpolationScalars = null;
 	public int resizeWidth;
 	public int resizeHeight;
 	public Clan clan;
@@ -749,6 +756,19 @@ public final class mudclient implements Runnable {
 		initConfig();
 	}
 
+	private static void saveScalingSettings(ScalingAlgorithm type, float scalar) {
+		Properties props = new Properties();
+		props.setProperty("scaling_type", String.valueOf(type.ordinal()));
+		props.setProperty("scaling_scalar", String.valueOf(scalar));
+
+		try (FileOutputStream out = new FileOutputStream("./clientSettings.conf")) {
+			props.store(out, "Client settings");
+		} catch (Exception e) {
+			System.out.println("Something went wrong saving scaling settings");
+			e.printStackTrace();
+		}
+	}
+
 	private static boolean isValidEmailAddress(String email) {
 		boolean stricterFilter = true;
 		String stricterFilterString = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,4}";
@@ -1023,9 +1043,10 @@ public final class mudclient implements Runnable {
 
 					--this.m_b;
 					var6 &= 255;
-					if (reposition()) {
+					if (reposition() || (this.currentViewMode == GameMode.LOGIN && scalarChangedSinceLogin)) {
 						if (this.currentViewMode == GameMode.LOGIN) {
 							this.createLoginPanels(3845);
+							scalarChangedSinceLogin = false;
 							//this.renderLoginScreenViewports(-116);
 						}
 						continue;
@@ -9423,16 +9444,7 @@ public final class mudclient implements Runnable {
 				"@whi@Camera angle mode - @red@Manual", 0, null, null);
 		}
 
-		// mouse button(s) - byte index 2
-		if (this.optionMouseButtonOne) {
-			this.panelSettings.setListEntry(this.controlSettingPanel, index++,
-				"@whi@Mouse buttons - @red@One", 1, null, null);
-		} else {
-			this.panelSettings.setListEntry(this.controlSettingPanel, index++,
-				"@whi@Mouse buttons - @gre@Two", 1, null, null);
-		}
-
-		// sound effects
+		// sound effects - byte index 2
 		if (wantMembers()) {
 			if (optionSoundDisabled) {
 				this.panelSettings.setListEntry(this.controlSettingPanel, index++,
@@ -9441,6 +9453,99 @@ public final class mudclient implements Runnable {
 				this.panelSettings.setListEntry(this.controlSettingPanel, index++,
 					"@whi@Sound effects - @gre@on", 2, null, null);
 			}
+		}
+
+		// rendering scalar - byte index 45
+
+		int scalarOptionIdx = wantMembers() ? 2 : 1;
+		boolean isScalarOptionOffered = !isAndroid();
+		boolean isScalarOptionShowing = panelSettings.controlScrollAmount[0] <= scalarOptionIdx && isScalarOptionOffered;
+
+		if (isScalarOptionOffered) {
+			if (isScalarOptionShowing) {
+				int yPos = y + ((scalarOptionIdx - panelSettings.controlScrollAmount[0] + 1) * 15);
+
+				// Scale down button
+				boolean scaleMinusHover = (this.gameWidth - this.mouseX) >= 125 && (this.gameWidth - this.mouseX) <= 143 &&
+					this.mouseY >= (yPos - 7) && this.mouseY <= (yPos + 4);
+
+				final String minusButtonLabel;
+				final int minusButtonColor;
+				if (renderingScalar <= 1) {
+					minusButtonLabel = " ";
+					minusButtonColor = 16777215;
+				} else {
+					minusButtonLabel = "-";
+					minusButtonColor = scaleMinusHover ? 65280 : 16616744;
+				}
+
+				this.getSurface().drawString("[ " + minusButtonLabel + " ]", this.gameWidth - 143, yPos, minusButtonColor, 1);
+
+				// Scalar label
+				final String scalarLabel = scalingType == ScalingAlgorithm.INTEGER_SCALING ?
+					(int) renderingScalar + "x" : renderingScalar + "x";
+				int scalarLabelOffset = scalingType == ScalingAlgorithm.INTEGER_SCALING ? 116 : 121;
+
+				final int scalarLabelColor;
+				if (renderingScalar > 1) {
+					// Anything above 1x, draw green
+					scalarLabelColor = 65280;
+				} else {
+					// At 0, draw white
+					scalarLabelColor = 16777215;
+				}
+
+				this.getSurface().drawString(scalarLabel, this.gameWidth - scalarLabelOffset, yPos + 1, scalarLabelColor, 1);
+
+				// Scale up button
+				boolean scalePlusHover = (this.gameWidth - this.mouseX) >= 72 && (this.gameWidth - this.mouseX) <= 92 &&
+					this.mouseY >= (yPos - 7) && this.mouseY <= (yPos + 4);
+
+				final List<Float> scalars = scalingType == ScalingAlgorithm.INTEGER_SCALING ? integerScalars : interpolationScalars;
+				boolean maxScalar = scalars.indexOf(renderingScalar) == scalars.size() - 1;
+
+				final String plusButtonLabel;
+				final int plusButtonColor;
+
+				if (maxScalar) {
+					plusButtonLabel = "  ";
+					plusButtonColor = 16777215;
+				} else {
+					plusButtonLabel = "+";
+					plusButtonColor = scalePlusHover ? 65280 : 16616744;
+				}
+
+				this.getSurface().drawString("[ " + plusButtonLabel + " ]", this.gameWidth - 93, yPos, plusButtonColor, 1);
+			}
+
+			this.panelSettings.setListEntry(this.controlSettingPanel, index++, "@whi@Scaling - ", 45, null, null);
+
+			// scaling type - byte index 46
+			String scalingTypeDescription;
+			switch (scalingType) {
+				default:
+				case INTEGER_SCALING:
+					scalingTypeDescription = "@gre@Integer";
+					break;
+				case BILINEAR_INTERPOLATION:
+					scalingTypeDescription = "@yel@Bilinear";
+					break;
+				case BICUBIC_INTERPOLATION:
+					scalingTypeDescription = "@ora@Bicubic";
+					break;
+			}
+
+			this.panelSettings.setListEntry(this.controlSettingPanel, index++,
+				"@whi@Scaling type - @gre@" + scalingTypeDescription, 46, null, null);
+		}
+
+		// mouse button(s) - byte index 1
+		if (this.optionMouseButtonOne) {
+			this.panelSettings.setListEntry(this.controlSettingPanel, index++,
+				"@whi@Mouse buttons - @red@One", 1, null, null);
+		} else {
+			this.panelSettings.setListEntry(this.controlSettingPanel, index++,
+				"@whi@Mouse buttons - @gre@Two", 1, null, null);
 		}
 
 		// custom UI
@@ -9828,21 +9933,51 @@ public final class mudclient implements Runnable {
 			this.packetHandler.getClientStream().finishPacket();
 		}
 
-		// one or two mouse button(s) - byte index 1
-		if (settingIndex == 1 && this.mouseButtonClick == 1) {
-			this.optionMouseButtonOne = !this.optionMouseButtonOne;
-			this.packetHandler.getClientStream().newPacket(111);
-			this.packetHandler.getClientStream().bufferBits.putByte(1);
-			this.packetHandler.getClientStream().bufferBits.putByte(this.optionMouseButtonOne ? 1 : 0);
-			this.packetHandler.getClientStream().finishPacket();
-		}
-
 		// sound on/off - byte index 2
 		if (wantMembers() && settingIndex == 2 && this.mouseButtonClick == 1) {
 			optionSoundDisabled = !optionSoundDisabled;
 			this.packetHandler.getClientStream().newPacket(111);
 			this.packetHandler.getClientStream().bufferBits.putByte(2);
 			this.packetHandler.getClientStream().bufferBits.putByte(optionSoundDisabled ? 1 : 0);
+			this.packetHandler.getClientStream().finishPacket();
+		}
+
+		/* rendering scalar - (would be byte index 45) */
+
+		int scalarOptionIdx = wantMembers() ? 2 : 1;
+		boolean isScalarOptionShowing = panelSettings.controlScrollAmount[0] <= scalarOptionIdx;
+
+		if (isScalarOptionShowing) {
+			int yPos = yFromTopDistance + ((scalarOptionIdx - panelSettings.controlScrollAmount[0] + 1) * 15);
+
+			// Scale down button
+			boolean scaleMinusHover = (this.gameWidth - this.mouseX) >= 125 && (this.gameWidth - this.mouseX) <= 143 &&
+				this.mouseY >= (yPos + 3) && this.mouseY <= (yPos + 14);
+
+			if (scaleMinusHover && this.mouseButtonClick == 1) {
+				scaleDown();
+			}
+
+			// Scale up button
+			boolean scalePlusHover = (this.gameWidth - this.mouseX) >= 72 && (this.gameWidth - this.mouseX) <= 92 &&
+				this.mouseY >= (yPos + 3) && this.mouseY <= (yPos + 14);
+
+			if (scalePlusHover && this.mouseButtonClick == 1) {
+				scaleUp();
+			}
+		}
+
+		// scaling type - byte index 46
+		if (settingIndex == 46 && this.mouseButtonClick == 1) {
+			cycleScalingType();
+		}
+
+		// one or two mouse button(s) - byte index 1
+		if (settingIndex == 1 && this.mouseButtonClick == 1) {
+			this.optionMouseButtonOne = !this.optionMouseButtonOne;
+			this.packetHandler.getClientStream().newPacket(111);
+			this.packetHandler.getClientStream().bufferBits.putByte(1);
+			this.packetHandler.getClientStream().bufferBits.putByte(this.optionMouseButtonOne ? 1 : 0);
 			this.packetHandler.getClientStream().finishPacket();
 		}
 
@@ -10065,17 +10200,11 @@ public final class mudclient implements Runnable {
 			}
 		}
 
-		// items on death
-		yFromTopDistance = 275;
-		if (C_CUSTOM_UI)
+		// adjust for previous settings
+		if (C_CUSTOM_UI) {
 			yFromTopDistance = getUITabsY() - 240 + 214;
-		if (S_ITEMS_ON_DEATH_MENU) {
-			if (this.mouseX > var6 && var5 + var6 > this.mouseX && this.mouseY > yFromTopDistance - 12
-				&& this.mouseY < yFromTopDistance + 4 && this.mouseButtonClick == 1) {
-				if (!C_CUSTOM_UI)
-					this.showUiTab = 0;
-				lostOnDeathInterface.setVisible(true);
-			}
+		} else {
+			yFromTopDistance = 275;
 		}
 
 		// logout menu option
@@ -11118,6 +11247,53 @@ public final class mudclient implements Runnable {
 			throw GenUtil.makeThrowable(var9,
 				"client.C(" + "dummy" + ',' + andStakeCount + ',' + andStakeInvIndex + ')');
 		}
+	}
+
+	void scaleUp() {
+		changeRenderingScalar(true);
+	}
+
+	void scaleDown() {
+		changeRenderingScalar(false);
+	}
+
+	private void changeRenderingScalar(Boolean scaleUp) {
+		scalarChangedSinceLogin = true;
+
+		final List<Float> scalars = scalingType == ScalingAlgorithm.INTEGER_SCALING ? integerScalars : interpolationScalars;
+
+		int idx = scalars.indexOf(renderingScalar);
+
+		if (scaleUp) {
+			if (idx + 1 < scalars.size()) {
+				idx += 1;
+			}
+		} else {
+			if (idx - 1 >= 0) {
+				idx -= 1;
+			}
+		}
+
+		newRenderingScalar = scalars.get(idx);
+
+		saveScalingSettings(scalingType, newRenderingScalar);
+	}
+
+	void cycleScalingType() {
+		if (scalingType == ScalingAlgorithm.INTEGER_SCALING) {
+			scalingType = ScalingAlgorithm.BILINEAR_INTERPOLATION;
+		} else if (scalingType == ScalingAlgorithm.BILINEAR_INTERPOLATION) {
+			scalingType = ScalingAlgorithm.BICUBIC_INTERPOLATION;
+		} else {
+			scalingType = ScalingAlgorithm.INTEGER_SCALING;
+
+			// When going back to integer scaling, round the scalar if needed
+			if (renderingScalar != (int) renderingScalar) {
+				newRenderingScalar = (int) renderingScalar;
+			}
+		}
+
+		saveScalingSettings(scalingType, newRenderingScalar);
 	}
 
 	private void fetchContainerSize() {
@@ -14499,6 +14675,12 @@ public final class mudclient implements Runnable {
 							if (classJar.startsWith("jar:")) {
 								runningFromJar = true;
 								String path = classJar.substring(4, classJar.indexOf("!"));
+								if (path.startsWith("file:/")) {
+									path = path.substring(6);
+								}
+								if (path.startsWith("file:")) {
+									path = path.substring(5);
+								}
 								jarName = Paths.get(path).getFileName().toString();
 								if (jarName.length() > 19) {
 									jarName = jarName.substring(0, 19);
@@ -14530,7 +14712,7 @@ public final class mudclient implements Runnable {
 						String osName = System.getProperty("os.name").toLowerCase();
 						String javaVendor = System.getProperty("java.vendor").toLowerCase();
 						boolean isAndroid = osName.contains("android") || javaVendor.contains("android");
-						if (isAndroid) { 
+						if (isAndroid) {
 							workingDir = "Android";
 						}
 						//Ideally, we want this string to be less than 60 characters, and it must be less than 63 characters to be encrypted with RSA.
