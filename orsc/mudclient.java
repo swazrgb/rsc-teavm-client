@@ -9945,7 +9945,7 @@ public final class mudclient implements Runnable {
 		/* rendering scalar - (would be byte index 45) */
 
 		int scalarOptionIdx = wantMembers() ? 2 : 1;
-		boolean isScalarOptionShowing = panelSettings.controlScrollAmount[0] <= scalarOptionIdx;
+		boolean isScalarOptionShowing = !isAndroid() && panelSettings.controlScrollAmount[0] <= scalarOptionIdx;
 
 		if (isScalarOptionShowing) {
 			int yPos = yFromTopDistance + ((scalarOptionIdx - panelSettings.controlScrollAmount[0] + 1) * 15);
