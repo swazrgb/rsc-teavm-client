@@ -8,6 +8,7 @@ import com.openrsc.client.entityhandling.defs.NPCDef;
 import com.openrsc.client.entityhandling.defs.SpellDef;
 import com.openrsc.client.entityhandling.defs.SpriteDef;
 import com.openrsc.client.entityhandling.defs.extras.AnimationDef;
+import com.openrsc.client.entityhandling.instances.GroundItem;
 import com.openrsc.client.entityhandling.instances.Item;
 import com.openrsc.client.model.Sprite;
 import com.openrsc.data.DataFileDecrypter;
@@ -39,6 +40,7 @@ import orsc.util.GenUtil;
 import orsc.util.StringUtil;
 import orsc.util.Utils;
 
+import java.awt.Point;
 import java.io.*;
 //import java.lang.management.ManagementFactory; //Commented out for Android
 import java.nio.charset.StandardCharsets;
@@ -125,6 +127,7 @@ public final class mudclient implements Runnable {
 	private final int[] groundItemID = new int[5000];
 	private final int[] groundItemX = new int[5000];
 	private final int[] groundItemZ = new int[5000];
+	private final ArrayList<GroundItem> groundItems = new ArrayList<GroundItem>();
 	private final Item[] inventory = new Item[S_PLAYER_INVENTORY_SLOTS];
 	private final ORSCharacter[] knownPlayers = new ORSCharacter[500];
 	private final String[] optionsMenuText = new String[20];
@@ -281,7 +284,8 @@ public final class mudclient implements Runnable {
 			|| S_FIGHTMODE_SELECTOR_TOGGLE || S_SHOW_ROOF_TOGGLE
 			|| S_EXPERIENCE_COUNTER_TOGGLE || S_WANT_GLOBAL_CHAT
 			|| S_EXPERIENCE_DROPS_TOGGLE || S_ITEMS_ON_DEATH_MENU
-			|| S_HIDE_LOGIN_BOX || S_WANT_GLOBAL_FRIEND);
+			|| S_HIDE_LOGIN_BOX || S_WANT_GLOBAL_FRIEND
+			|| S_GROUND_ITEM_NAMES);
 	public long totalXpGainedStartTime = 0;
 	public String[] achievementNames = new String[500];
 	public String[] achievementTitles = new String[500];
@@ -5210,6 +5214,16 @@ public final class mudclient implements Runnable {
 					}
 
 					this.scene.endScene(-113);
+
+					// Only draw ground item names if the feature is enabled
+					// and a panel/the keyboard isn't open.
+					if (S_GROUND_ITEM_NAMES && C_GROUND_ITEM_NAMES
+						&& showUiTab == 0 && !(isAndroid() && osConfig.F_SHOWING_KEYBOARD)) {
+						drawGroundItemNames();
+					}
+					// Clear out the ground items for the next frame
+					groundItems.clear();
+
 					this.drawCharacterOverlay();
 
 					if (this.mouseClickXStep > 0) {
@@ -5268,6 +5282,7 @@ public final class mudclient implements Runnable {
 								this.getGameHeight() - 7);
 						}
 					}
+
 					if (S_WANT_EXPERIENCE_ELIXIRS && this.elixirTimer != 0) {
 						centerX = this.elixirTimer / 50;
 						centerZ = centerX / 60;
@@ -6078,12 +6093,53 @@ public final class mudclient implements Runnable {
 			else {
 				sprite = spriteSelect(EntityHandler.getItemDef(id));
 			}
-			int mask = EntityHandler.getItemDef(id).getPictureMask();
+
+			ItemDef itemDef = EntityHandler.getItemDef(id);
+			int mask = itemDef.getPictureMask();
 			this.getSurface().drawSpriteClipping(sprite, x, y, width, height, mask, 0,
-				EntityHandler.getItemDef(id).getBlueMask(), false, 0, 1);
+				itemDef.getBlueMask(), false, 0, 1);
+
+			groundItems.add(new GroundItem(id, x, y, width, height, itemDef, sprite));
+
 		} catch (RuntimeException var10) {
 			throw GenUtil.makeThrowable(var10, "client.CA(" + height + ',' + topPixelSkew + ',' + x + ',' + id + ',' + width
 				+ ',' + "dummy" + ',' + y + ')');
+		}
+	}
+
+	private void drawGroundItemNames() {
+		Collections.sort(groundItems, new GroundItem.GroundItemComparator());
+
+		ArrayList<Point> namePoints = new ArrayList<Point>();
+		int yOffset = 0;
+		GroundItem lastItem = null;
+		for (GroundItem groundItem : groundItems) {
+			// The ground items are sorted alphabetically and by position, so if the current item is the same as the last item, we can skip it, since it's already been drawn.
+			if (groundItem.equals(lastItem)) {
+				continue;
+			}
+			lastItem = groundItem;
+
+			int x = groundItem.getX() + (groundItem.getWidth() / 2);
+            int y = groundItem.getY() - 6;
+			int frequency = Collections.frequency(groundItems, groundItem);
+
+			// Loop through the array of occupied points.
+			// If the point we're trying to write to is occupied, move the string up
+			for (Point point : namePoints) {
+				if (x == point.x && y == point.y) {
+					y -= 12;
+				}
+			}
+			namePoints.add(new Point(x, y));
+
+			String itemName = groundItem.getName() + (frequency > 1 ? " (" + frequency + ")" : "");
+			int displayWidth = getSurface().stringWidth(0, itemName);
+			// Recalculate x for display
+			x = groundItem.getX() + groundItem.getWidth() / 2 - displayWidth / 2;
+
+			getSurface().drawShadowText(itemName, x, y, 0xFFFFFF, 0, false);
+			yOffset += 10;
 		}
 	}
 
@@ -9640,6 +9696,13 @@ public final class mudclient implements Runnable {
 					: C_SHOW_GROUND_ITEMS == 3 ? "@ora@No Bones" : "@or1@No Ashes"), 8, null, null);
 		}
 
+		// Ground item names
+		if (S_GROUND_ITEM_NAMES) {
+			this.panelSettings.setListEntry(this.controlSettingPanel, index++,
+				"@whi@Ground Item Names - " + (C_GROUND_ITEM_NAMES ? "@gre@On" : "@red@Off"),
+				45, null, null);
+		}
+
 		// auto message switch
 		if (S_AUTO_MESSAGE_SWITCH_TOGGLE) {
 			if (!C_MESSAGE_TAB_SWITCH) {
@@ -10119,6 +10182,55 @@ public final class mudclient implements Runnable {
 			this.packetHandler.getClientStream().finishPacket();
 		}
 
+		if (settingIndex == 45 && this.mouseButtonClick == 1 && S_GROUND_ITEM_NAMES) {
+			C_GROUND_ITEM_NAMES = !C_GROUND_ITEM_NAMES;
+			this.packetHandler.getClientStream().newPacket(111);
+			this.packetHandler.getClientStream().bufferBits.putByte(45);
+			boolean setting = C_GROUND_ITEM_NAMES;
+			this.packetHandler.getClientStream().bufferBits.putByte(setting ? 1 : 0);
+			this.packetHandler.getClientStream().finishPacket();
+		}
+
+		// batch progress bar - byte index 24
+		if (S_BATCH_PROGRESSION) {
+			if (settingIndex == 24 && this.mouseButtonClick == 1) {
+				C_BATCH_PROGRESS_BAR = !C_BATCH_PROGRESS_BAR;
+				this.packetHandler.getClientStream().newPacket(111);
+				this.packetHandler.getClientStream().bufferBits.putByte(24);
+				boolean optionBatchProgressBar = C_BATCH_PROGRESS_BAR;
+				this.packetHandler.getClientStream().bufferBits.putByte(optionBatchProgressBar ? 1 : 0);
+				this.packetHandler.getClientStream().finishPacket();
+			}
+		}
+
+		// experience drops - byte index 25
+		if (settingIndex == 25 && this.mouseButtonClick == 1 && S_EXPERIENCE_DROPS_TOGGLE) {
+			C_EXPERIENCE_DROPS = !C_EXPERIENCE_DROPS;
+			this.packetHandler.getClientStream().newPacket(111);
+			this.packetHandler.getClientStream().bufferBits.putByte(25);
+			boolean optionExperienceDrops = C_EXPERIENCE_DROPS;
+			this.packetHandler.getClientStream().bufferBits.putByte(optionExperienceDrops ? 1 : 0);
+			this.packetHandler.getClientStream().finishPacket();
+		}
+
+		// npc killcount shows
+		if (S_NPC_KILL_COUNTERS) {
+			if (settingIndex == 38 && this.mouseButtonClick == 1) {
+				C_TOTAL_NPC_KC = !C_TOTAL_NPC_KC;
+				this.packetHandler.getClientStream().newPacket(111);
+				this.packetHandler.getClientStream().bufferBits.putByte(38);
+				this.packetHandler.getClientStream().bufferBits.putByte(C_TOTAL_NPC_KC ? 1 : 0);
+				this.packetHandler.getClientStream().finishPacket();
+			}
+			if (settingIndex == 44 && this.mouseButtonClick == 1) {
+				C_RECENT_NPC_KC = !C_RECENT_NPC_KC;
+				this.packetHandler.getClientStream().newPacket(111);
+				this.packetHandler.getClientStream().bufferBits.putByte(44);
+				this.packetHandler.getClientStream().bufferBits.putByte(C_RECENT_NPC_KC ? 1 : 0);
+				this.packetHandler.getClientStream().finishPacket();
+			}
+		}
+
 		// if clans are enabled
 		if (S_WANT_CLANS) {
 			// floating clan name tag overlay - byte index 35
@@ -10157,46 +10269,6 @@ public final class mudclient implements Runnable {
 				this.packetHandler.getClientStream().bufferBits.putByte(36);
 				this.packetHandler.getClientStream().bufferBits.putByte(this.partyInviteBlockSetting ? 1 : 0);
 				this.packetHandler.getClientStream().finishPacket();
-			}
-
-			// batch progress bar - byte index 24
-			if (S_BATCH_PROGRESSION) {
-				if (settingIndex == 24 && this.mouseButtonClick == 1) {
-					C_BATCH_PROGRESS_BAR = !C_BATCH_PROGRESS_BAR;
-					this.packetHandler.getClientStream().newPacket(111);
-					this.packetHandler.getClientStream().bufferBits.putByte(24);
-					boolean optionBatchProgressBar = C_BATCH_PROGRESS_BAR;
-					this.packetHandler.getClientStream().bufferBits.putByte(optionBatchProgressBar ? 1 : 0);
-					this.packetHandler.getClientStream().finishPacket();
-				}
-			}
-
-			// experience drops - byte index 25
-			if (settingIndex == 25 && this.mouseButtonClick == 1 && S_EXPERIENCE_DROPS_TOGGLE) {
-				C_EXPERIENCE_DROPS = !C_EXPERIENCE_DROPS;
-				this.packetHandler.getClientStream().newPacket(111);
-				this.packetHandler.getClientStream().bufferBits.putByte(25);
-				boolean optionExperienceDrops = C_EXPERIENCE_DROPS;
-				this.packetHandler.getClientStream().bufferBits.putByte(optionExperienceDrops ? 1 : 0);
-				this.packetHandler.getClientStream().finishPacket();
-			}
-
-			// npc killcount shows
-			if (S_NPC_KILL_COUNTERS) {
-				if (settingIndex == 38 && this.mouseButtonClick == 1) {
-					C_TOTAL_NPC_KC = !C_TOTAL_NPC_KC;
-					this.packetHandler.getClientStream().newPacket(111);
-					this.packetHandler.getClientStream().bufferBits.putByte(38);
-					this.packetHandler.getClientStream().bufferBits.putByte(C_TOTAL_NPC_KC ? 1 : 0);
-					this.packetHandler.getClientStream().finishPacket();
-				}
-				if (settingIndex == 44 && this.mouseButtonClick == 1) {
-					C_RECENT_NPC_KC = !C_RECENT_NPC_KC;
-					this.packetHandler.getClientStream().newPacket(111);
-					this.packetHandler.getClientStream().bufferBits.putByte(44);
-					this.packetHandler.getClientStream().bufferBits.putByte(C_RECENT_NPC_KC ? 1 : 0);
-					this.packetHandler.getClientStream().finishPacket();
-				}
 			}
 		}
 
@@ -18052,6 +18124,10 @@ public final class mudclient implements Runnable {
 
 	public void setGroundItemsToggle(int i) {
 		C_SHOW_GROUND_ITEMS = i;
+	}
+
+	public void setGroundItemNames(boolean b) {
+		C_GROUND_ITEM_NAMES = b;
 	}
 
 	public void setFightModeSelectorToggle(int i) {
