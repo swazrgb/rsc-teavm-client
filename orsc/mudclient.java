@@ -4901,7 +4901,8 @@ public final class mudclient implements Runnable {
 							this.scene.removeModel(this.world.modelRoofGrid[2][centerX]);
 						}
 
-						if (!this.doCameraZoom) {
+						// If the player is hiding roofs, we want to skip the camera zoom
+						if (!C_HIDE_ROOFS && !this.doCameraZoom) {
 							amountToZoom -= 50;
 							this.doCameraZoom = true;
 						}
@@ -4911,14 +4912,16 @@ public final class mudclient implements Runnable {
 
 						if ((this.lastHeightOffset == 0
 							&& (world.collisionFlags[this.localPlayer.currentX / 128][this.localPlayer.currentZ
-							/ 128] & 0x80) == 0 && !C_HIDE_ROOFS)) {
+							/ 128] & 0x80) == 0)) {
 
-							this.scene.addModel(this.world.modelRoofGrid[this.lastHeightOffset][centerX]);
-							if (this.lastHeightOffset == 0) {
-								this.scene.addModel(this.world.modelWallGrid[1][centerX]);
-								this.scene.addModel(this.world.modelRoofGrid[1][centerX]);
-								this.scene.addModel(this.world.modelWallGrid[2][centerX]);
-								this.scene.addModel(this.world.modelRoofGrid[2][centerX]);
+							if (!C_HIDE_ROOFS) {
+								this.scene.addModel(this.world.modelRoofGrid[this.lastHeightOffset][centerX]);
+								if (this.lastHeightOffset == 0) {
+									this.scene.addModel(this.world.modelWallGrid[1][centerX]);
+									this.scene.addModel(this.world.modelRoofGrid[1][centerX]);
+									this.scene.addModel(this.world.modelWallGrid[2][centerX]);
+									this.scene.addModel(this.world.modelRoofGrid[2][centerX]);
+								}
 							}
 
 							if (this.doCameraZoom) {
