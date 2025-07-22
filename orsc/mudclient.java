@@ -40,7 +40,6 @@ import orsc.util.GenUtil;
 import orsc.util.StringUtil;
 import orsc.util.Utils;
 
-import java.awt.Point;
 import java.io.*;
 //import java.lang.management.ManagementFactory; //Commented out for Android
 import java.nio.charset.StandardCharsets;
@@ -6113,7 +6112,7 @@ public final class mudclient implements Runnable {
 	private void drawGroundItemNames() {
 		Collections.sort(groundItems, new GroundItem.GroundItemComparator());
 
-		ArrayList<Point> namePoints = new ArrayList<Point>();
+		ArrayList<ScreenPoint> namePoints = new ArrayList<ScreenPoint>();
 		int yOffset = 0;
 		GroundItem lastItem = null;
 		for (GroundItem groundItem : groundItems) {
@@ -6129,12 +6128,12 @@ public final class mudclient implements Runnable {
 
 			// Loop through the array of occupied points.
 			// If the point we're trying to write to is occupied, move the string up
-			for (Point point : namePoints) {
+			for (ScreenPoint point : namePoints) {
 				if (x == point.x && y == point.y) {
 					y -= 12;
 				}
 			}
-			namePoints.add(new Point(x, y));
+			namePoints.add(new ScreenPoint(x, y));
 
 			String itemName = groundItem.getName() + (frequency > 1 ? " (" + frequency + ")" : "");
 			int displayWidth = getSurface().stringWidth(0, itemName);
@@ -18346,6 +18345,16 @@ public final class mudclient implements Runnable {
 			x = halfGameWidth() - 50;
 			y = (int) ((float) getGameHeight() / 4.0f + 40);
 			isActive = false;
+		}
+	}
+
+	class ScreenPoint {
+		public int x;
+		public int y;
+
+		public ScreenPoint(int x, int y) {
+			this.x = x;
+			this.y = y;
 		}
 	}
 }
