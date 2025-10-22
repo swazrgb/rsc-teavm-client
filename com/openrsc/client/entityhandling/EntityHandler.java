@@ -922,13 +922,13 @@ public class EntityHandler {
 		npcs.add(new NPCDef("Greater Demon", "big red and incredibly evil", "", 86, 87, 87, 88, true, sprites, 0, 0, 0, 0, 358, 341, 11, 11, 30, i++));
 		sprites = new int[]{3, 4, 2, -1, -1, -1, -1, -1, -1, -1, 9, -1};
 		if (Config.S_WANT_OPENPK_POINTS) {
-			npcs.add(new NPCDef("Points Shopkeeper", "He will buy my points and sell me stuff", "", 0, 0, 3, 0, false, sprites, 16777215, 8409120, 8409120, 13415270, 120, 220, 6, 6, 5, i++));
+			npcs.add(new NPCDef("Points Shopkeeper", "She will buy my points and sell me stuff", shopOption, 0, 0, 3, 0, false, sprites, 16777215, 8409120, 8409120, 13415270, 120, 220, 6, 6, 5, i++));
 		} else {
 			npcs.add(new NPCDef("Shopkeeper", "I wonder what he's got for sale", shopOption, 0, 0, 3, 0, false, sprites, 16777215, 8409120, 8409120, 15523536, 120, 220, 6, 6, 5, i++));
 		}
 		sprites = new int[]{0, 1, 2, -1, -1, -1, -1, -1, -1, -1, 9, -1};
 		if (Config.S_WANT_OPENPK_POINTS) {
-			npcs.add(new NPCDef("Points Shopkeeper", "She will buy my points and sell me stuff", "", 0, 0, 3, 0, false, sprites, 6307872, 8409120, 8409120, 13415270, 145, 220, 6, 6, 5, i++));
+			npcs.add(new NPCDef("Points Shopkeeper", "He will buy my points and sell me stuff", shopOption, 0, 0, 3, 0, false, sprites, 6307872, 8409120, 8409120, 13415270, 145, 220, 6, 6, 5, i++));
 		} else {
 			npcs.add(new NPCDef("Shop Assistant", "Maybe he'd like to buy some of my junk", shopOption, 0, 0, 3, 0, false, sprites, 6307872, 8409120, 8409120, 15523536, 145, 220, 6, 6, 5, i++));
 		}

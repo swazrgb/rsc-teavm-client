@@ -9,8 +9,34 @@ import orsc.mudclient;
 
 import java.util.Arrays;
 
-
 public final class PointInterface {
+	// Classic RSC style colours
+	private static final int WINDOW_BG = 0x3A2A10;      // dark brown
+	private static final int WINDOW_BG_SHADE = 0x2A1C08; // darker shade
+	private static final int WINDOW_BORDER = 0x000000;   // black
+	private static final int TITLE_BG = 0x4A3620;       // mid brown
+	private static final int TITLE_TEXT = 0xFFFF00;     // yellow
+	private static final int CONTENT_TEXT = 0xFFFFFF;   // white
+	private static final int GRID_LINE = 0x000000;      // black lines
+	private static final int BUTTON_BG = 0x333333;      // neutral
+	private static final int BUTTON_HOVER_BG = 0x6580B7;// hover blue
+	private static final int BUTTON_ACTIVE_BG = 0x871E1E;// active / checked red tone
+
+	// Layout constants
+	private static final int STAT_ROW_HEIGHT = 40;
+	private static final int HEADER_HEIGHT = 29;
+	private static final int TITLE_BAR_HEIGHT = 44; // enlarged to fit title + header labels
+	private static final int PADDING_LEFT = 10;
+	private static final int COL_LEVEL_X_OFFSET = 62; // separators relative positions
+	private static final int COL_POINTS_X_OFFSET = 93;
+	private static final int COL_TOTAL_EXP_X_OFFSET = 225;
+	private static final int COL_LEVEL_MOD_X_OFFSET = 295;
+	// Button columns
+	private static final int COL_POINTS_MINUS_X = 170;
+	private static final int COL_POINTS_PLUS_X = 200;
+	private static final int COL_LEVEL_MINUS_X = 300;
+	private static final int COL_LEVEL_PLUS_X = 325;
+
 	private static final int ATTACK = 0, DEFENSE = 1, STRENGTH = 2, HITPOINTS = 3, HITS = 3, RANGED = 4, PRAYER = 5, MAGIC = 6;
 
 	private static final int REDUCE_DEFENSE = 0, INCREASE_DEFENSE = 1, INCREASE_ATTACK = 2, INCREASE_STRENGTH = 3, INCREASE_RANGED = 4, INCREASE_PRAYER = 5, INCREASE_MAGIC = 6, REDUCE_ATTACK = 7, REDUCE_STRENGTH = 8, REDUCE_RANGED = 9, REDUCE_PRAYER = 10, REDUCE_MAGIC = 11;
@@ -21,16 +47,30 @@ public final class PointInterface {
 	int width = 400, height = 325;
 	private boolean visible = false;
 	private mudclient mc;
-	private int panelColour, textColour, bordColour, lineColour;
 	private int x, y;
+	private int panelColour;
+	private int textColour;
+	private int bordColour;
+	private int lineColour;
 	private int pColour;
+
+	// Arrays to drive rendering
+	private static final int[] SKILL_IDS = {ATTACK, DEFENSE, STRENGTH, RANGED, PRAYER, MAGIC};
+	private static final String[] SKILL_LABELS = {"Attack", "Defense", "Strength", "Ranged", "Prayer", "Magic"};
+	private static final int[] OPTION_INC = {INCREASE_ATTACK, INCREASE_DEFENSE, INCREASE_STRENGTH, INCREASE_RANGED, INCREASE_PRAYER, INCREASE_MAGIC};
+	private static final int[] OPTION_DEC = {REDUCE_ATTACK, REDUCE_DEFENSE, REDUCE_STRENGTH, REDUCE_RANGED, REDUCE_PRAYER, REDUCE_MAGIC};
+
+	// Adjustable vertical offsets
+	private static final int BUTTON_TEXT_EXTRA_OFFSET = 5; // baseline offset for symbols
+	private static final int BUTTON_PLUS_ADDITIONAL_OFFSET = 4; // extra offset to lower '+' for visual centering
+	private static final int BUTTON_FONT_HEIGHT_APPROX = 12; // approximate font height for button font
+	private static final int FOOTER_FONT_HEIGHT_APPROX = 12; // estimated font height for font 2
+	private static final int FOOTER_TEXT_BASELINE_ADJUST = -14; // raise footer text to center vertically
 
 	public PointInterface(mudclient mc) {
 		this.mc = mc;
-
 		x = (mc.getGameWidth() - width) / 2;
 		y = (mc.getGameHeight() - height) / 2;
-
 		experienceConfig = new Panel(mc.getSurface(), 5);
 		experienceConfigScroll = experienceConfig.addScrollingList(x + 95, y + 34, 160, height - 40, 20, 2, false);
 	}
@@ -38,395 +78,224 @@ public final class PointInterface {
 	public void reposition() {
 		x = (mc.getGameWidth() - width) / 2;
 		y = (mc.getGameHeight() - height) / 2;
-
 		experienceConfig.reposition(experienceConfigScroll, x + 95, y + 34, 160, height - 40);
 	}
 
 	public void onRender(GraphicsController graphics) {
 		reposition();
-
 		drawExperienceConfig();
-
 		if (selectSkillMenu) {
 			drawSelectSkillMenu();
 		}
 	}
 
 	private void drawExperienceConfig() {
-
 		reposition();
-
-		panelColour = 0x989898;
-		textColour = 0xffffff;
-		bordColour = 0x000000;
-		lineColour = 0x000000;
-		pColour = 0x0C0C0C;
+		panelColour = WINDOW_BG;
+		textColour = CONTENT_TEXT;
+		bordColour = WINDOW_BORDER;
+		lineColour = GRID_LINE;
+		pColour = WINDOW_BG_SHADE;
 
 		experienceConfig.handleMouse(mc.getMouseX(), mc.getMouseY(), mc.getMouseButtonDown(), mc.getLastMouseDown());
 
-		mc.getSurface().drawBoxAlpha(x, y, width, height, pColour, 90);
+		// Window background & border
+		mc.getSurface().drawBoxAlpha(x, y, width, height, pColour, 160);
 		mc.getSurface().drawBoxBorder(x, width, y, height, bordColour);
-		this.drawString("Stat ", x + 10, y + 24, 3, textColour);
-		mc.getSurface().drawLineVert(x + 62, y, width, 29);
-		mc.getSurface().drawLineVert(x + 93, y, width, 29);
-		mc.getSurface().drawLineVert(x + 225, y, width, 29);
-		mc.getSurface().drawLineVert(x + 295, y, width, 29);
-		this.drawString("Lv ", x + 69, y + 25, 3, textColour);
-		this.drawString("Points to advance ", x + 97, y + 25, 3, textColour);
-		this.drawString("Total Exp", x + 230, y + 24, 3, textColour);
-		this.drawString("+/- Levels", x + 300, y + 24, 3, textColour);
-		mc.getSurface().drawLineHoriz(x, y + 29, width, lineColour);
-		mc.getSurface().drawLineHoriz(x, y + (Config.S_WANT_OPENPK_PRESETS ? 259 : 262), width, lineColour);
-		if (Config.S_WANT_OPENPK_PRESETS) {
-			mc.getSurface().drawLineHoriz(x, y + 293, width, lineColour);
-		}
-		int nextLevelExpA = mc.getExperienceArray()[ATTACK];
-		nextLevelExpA = mc.getExperienceArray()[mc.getPlayerStatBase(ATTACK) - 1];
-		int nL0 = nextLevelExpA - mc.getPlayerExperience(ATTACK);
-		this.drawString("Attack: ", x + 10, y + 48, 3, textColour);
-		this.drawString("" + mc.getPlayerExperience(ATTACK), x + 231, y + 48, 3, textColour);
-		this.drawString("               " + mc.getPlayerStatBase(ATTACK) + "     " + nL0 + "", x + 10, y + 48, 3, textColour);
-		this.drawButton(x + 170, y + 33, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(ATTACK);
-				mc.setPointsOptionId(REDUCE_ATTACK);
-				mc.showItemModX(InputXPrompt.reducePointsX, InputXAction.REDUCEPOINTS_X, true);
-			}
-		});
-		this.drawButton(x + 200, y + 33, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(ATTACK);
-				mc.setPointsOptionId(INCREASE_ATTACK);
-				mc.showItemModX(InputXPrompt.incPointsX, InputXAction.INCPOINTS_X, true);
-			}
-		});
-		this.drawButton(x + 300, y + 33, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(ATTACK);
-				mc.setPointsOptionId(REDUCE_ATTACK);
-				mc.showItemModX(InputXPrompt.reduceLevelsX, InputXAction.REDUCELEVELS_X, true);
-			}
-		});
-		this.drawButton(x + 325, y + 33, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(ATTACK);
-				mc.setPointsOptionId(INCREASE_ATTACK);
-				mc.showItemModX(InputXPrompt.incLevelsX, InputXAction.INCLEVELS_X, true);
-			}
-		});
-		this.drawButton(x + 300, y + 73, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(DEFENSE);
-				mc.setPointsOptionId(REDUCE_DEFENSE);
-				mc.showItemModX(InputXPrompt.reduceLevelsX, InputXAction.REDUCELEVELS_X, true);
-			}
-		});
-		this.drawButton(x + 325, y + 73, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(DEFENSE);
-				mc.setPointsOptionId(INCREASE_DEFENSE);
-				mc.showItemModX(InputXPrompt.incLevelsX, InputXAction.INCLEVELS_X, true);
-			}
-		});
-		this.drawButton(x + 300, y + 113, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(STRENGTH);
-				mc.setPointsOptionId(REDUCE_STRENGTH);
-				mc.showItemModX(InputXPrompt.reduceLevelsX, InputXAction.REDUCELEVELS_X, true);
-			}
-		});
-		this.drawButton(x + 325, y + 113, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(STRENGTH);
-				mc.setPointsOptionId(INCREASE_STRENGTH);
-				mc.showItemModX(InputXPrompt.incLevelsX, InputXAction.INCLEVELS_X, true);
-			}
-		});
-		this.drawButton(x + 300, y + 153, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(RANGED);
-				mc.setPointsOptionId(REDUCE_RANGED);
-				mc.showItemModX(InputXPrompt.reduceLevelsX, InputXAction.REDUCELEVELS_X, true);
-			}
-		});
-		this.drawButton(x + 325, y + 153, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(RANGED);
-				mc.setPointsOptionId(INCREASE_RANGED);
-				mc.showItemModX(InputXPrompt.incLevelsX, InputXAction.INCLEVELS_X, true);
-			}
-		});
-		this.drawButton(x + 300, y + 193, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(PRAYER);
-				mc.setPointsOptionId(REDUCE_PRAYER);
-				mc.showItemModX(InputXPrompt.reduceLevelsX, InputXAction.REDUCELEVELS_X, true);
-			}
-		});
-		this.drawButton(x + 325, y + 193, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(PRAYER);
-				mc.setPointsOptionId(INCREASE_PRAYER);
-				mc.showItemModX(InputXPrompt.incLevelsX, InputXAction.INCLEVELS_X, true);
-			}
-		});
-		this.drawButton(x + 300, y + 233, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(MAGIC);
-				mc.setPointsOptionId(REDUCE_MAGIC);
-				mc.showItemModX(InputXPrompt.reduceLevelsX, InputXAction.REDUCELEVELS_X, true);
-			}
-		});
-		this.drawButton(x + 325, y + 233, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(MAGIC);
-				mc.setPointsOptionId(INCREASE_MAGIC);
-				mc.showItemModX(InputXPrompt.incLevelsX, InputXAction.INCLEVELS_X, true);
-			}
-		});
 
-		this.drawCloseButton(x + 368, y + 3, 24, 24, "X", 5, new ButtonHandler() {
-			@Override
-			void handle() {
-				setVisible(false);
-			}
-		});
-		if (Config.S_WANT_OPENPK_PRESETS) {
-			this.drawCloseButton(x + 265, y + 265, 82, 24, "Save Preset", 3, new ButtonHandler() {
-				@Override
-				void handle() {
-					mc.showItemModX(InputXPrompt.savePreset, InputXAction.SAVEPRESET_X, true);
-				}
-			});
-			this.drawCloseButton(x + 5, y + 265, 45, 24, "1", 3, new ButtonHandler() {
-				@Override
-				void handle() {
-					try {
-						mc.packetHandler.getClientStream().newPacket(199);
-						mc.packetHandler.getClientStream().bufferBits.putByte(13);
-						mc.packetHandler.getClientStream().bufferBits.putByte(14);
-						mc.packetHandler.getClientStream().finishPacket();
-					} catch (NumberFormatException var13) {
-						System.out.println("load preset x number format exception: " + var13);
-					}
-				}
-			});
-			this.drawCloseButton(x + 55, y + 265, 45, 24, "2", 3, new ButtonHandler() {
-				@Override
-				void handle() {
-					try {
-						mc.packetHandler.getClientStream().newPacket(199);
-						mc.packetHandler.getClientStream().bufferBits.putByte(13);
-						mc.packetHandler.getClientStream().bufferBits.putByte(15);
-						mc.packetHandler.getClientStream().finishPacket();
-					} catch (NumberFormatException var13) {
-						System.out.println("load preset x number format exception: " + var13);
-					}
-				}
-			});
-			this.drawCloseButton(x + 105, y + 265, 45, 24, "3", 3, new ButtonHandler() {
-				@Override
-				void handle() {
-					try {
-						mc.packetHandler.getClientStream().newPacket(199);
-						mc.packetHandler.getClientStream().bufferBits.putByte(13);
-						mc.packetHandler.getClientStream().bufferBits.putByte(16);
-						mc.packetHandler.getClientStream().finishPacket();
-					} catch (NumberFormatException var13) {
-						System.out.println("load preset x number format exception: " + var13);
-					}
-				}
-			});
-			this.drawCloseButton(x + 155, y + 265, 45, 24, "4", 3, new ButtonHandler() {
-				@Override
-				void handle() {
-					try {
-						mc.packetHandler.getClientStream().newPacket(199);
-						mc.packetHandler.getClientStream().bufferBits.putByte(13);
-						mc.packetHandler.getClientStream().bufferBits.putByte(17);
-						mc.packetHandler.getClientStream().finishPacket();
-					} catch (NumberFormatException var13) {
-						System.out.println("load preset x number format exception: " + var13);
-					}
-				}
-			});
-			this.drawCloseButton(x + 205, y + 265, 45, 24, "5", 3, new ButtonHandler() {
-				@Override
-				void handle() {
-					try {
-						mc.packetHandler.getClientStream().newPacket(199);
-						mc.packetHandler.getClientStream().bufferBits.putByte(13);
-						mc.packetHandler.getClientStream().bufferBits.putByte(18);
-						mc.packetHandler.getClientStream().finishPacket();
-					} catch (NumberFormatException var13) {
-						System.out.println("load preset x number format exception: " + var13);
-					}
-				}
-			});
-		}
+		// Title bar (now taller to include two lines)
+		mc.getSurface().drawBoxAlpha(x, y, width, TITLE_BAR_HEIGHT, TITLE_BG, 220);
+		// Title line
+		drawStringCentered("Skill Points Manager", x, y + 14, 2, TITLE_TEXT);
 
+		// Header labels (second line within title bar) now centered per column
+		int statColStart = x;
+		int statColEnd = x + COL_LEVEL_X_OFFSET;
+		int lvColStart = x + COL_LEVEL_X_OFFSET;
+		int lvColEnd = x + COL_POINTS_X_OFFSET;
+		int ptsColStart = x + COL_POINTS_X_OFFSET;
+		int ptsColEnd = x + COL_TOTAL_EXP_X_OFFSET;
+		int expColStart = x + COL_TOTAL_EXP_X_OFFSET;
+		int expColEnd = x + COL_LEVEL_MOD_X_OFFSET;
+		int modColStart = x + COL_LEVEL_MOD_X_OFFSET;
+		int modColEnd = x + width;
+		int headerLabelY = y + 30;
+		drawHeaderCentered("Stat", statColStart, statColEnd, headerLabelY);
+		drawHeaderCentered("Lv", lvColStart, lvColEnd, headerLabelY);
+		drawHeaderCentered("Points to advance", ptsColStart, ptsColEnd, headerLabelY);
+		drawHeaderCentered("Total Exp", expColStart, expColEnd, headerLabelY);
+		drawHeaderCentered("+/- Levels", modColStart, modColEnd, headerLabelY);
+
+		// Bottom line of title/header area
+		mc.getSurface().drawLineHoriz(x, y + TITLE_BAR_HEIGHT, width, lineColour);
+
+		// Removed vertical separator lines in header area for cleaner look
+		// Clear scrolling list
 		experienceConfig.clearList(experienceConfigScroll);
-		int nextLevelExpD = mc.getExperienceArray()[DEFENSE];
-		nextLevelExpD = mc.getExperienceArray()[mc.getPlayerStatBase(DEFENSE) - 1];
-		int nL1 = nextLevelExpD - mc.getPlayerExperience(DEFENSE);
-		this.drawString("Defense: ", x + 10, y + 88, 3, textColour);
-		this.drawString("" + mc.getPlayerExperience(DEFENSE), x + 231, y + 88, 3, textColour);
-		this.drawString("               " + mc.getPlayerStatBase(DEFENSE) + "     " + nL1 + "", x + 10, y + 88, 3, textColour);
-		this.drawButton(x + 170, y + 73, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(DEFENSE);
-				mc.setPointsOptionId(REDUCE_DEFENSE);
-				mc.showItemModX(InputXPrompt.reducePointsX, InputXAction.REDUCEPOINTS_X, true);
-			}
-		});
-		this.drawButton(x + 200, y + 73, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(DEFENSE);
-				mc.setPointsOptionId(INCREASE_DEFENSE);
-				mc.showItemModX(InputXPrompt.incPointsX, InputXAction.INCPOINTS_X, true);
-			}
-		});
-		int nextLevelExpS = mc.getExperienceArray()[STRENGTH];
-		nextLevelExpS = mc.getExperienceArray()[mc.getPlayerStatBase(STRENGTH) - 1];
-		int nL2 = nextLevelExpS - mc.getPlayerExperience(STRENGTH);
-		this.drawString("Strength: ", x + 10, y + 128, 3, textColour);
-		this.drawString("" + mc.getPlayerExperience(STRENGTH), x + 231, y + 128, 3, textColour);
-		this.drawString("               " + mc.getPlayerStatBase(STRENGTH) + "     " + nL2 + "", x + 10, y + 128, 3, textColour);
-		this.drawButton(x + 200, y + 113, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(STRENGTH);
-				mc.setPointsOptionId(INCREASE_STRENGTH);
-				mc.showItemModX(InputXPrompt.incPointsX, InputXAction.INCPOINTS_X, true);
-			}
-		});
-		this.drawButton(x + 170, y + 113, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(STRENGTH);
-				mc.setPointsOptionId(REDUCE_STRENGTH);
-				mc.showItemModX(InputXPrompt.reducePointsX, InputXAction.REDUCEPOINTS_X, true);
-			}
+
+		// Adjusted starting Y for stat rows due to larger header area
+		int rowStartOffset = TITLE_BAR_HEIGHT + 18; // was ~48 before enlargement
+
+		// Draw stat rows
+		for (int i = 0; i < SKILL_IDS.length; i++) {
+			int skillId = SKILL_IDS[i];
+			// Add final copies for inner classes
+			final int idx = i;
+			final int skillIdFinal = skillId;
+			String label = SKILL_LABELS[i];
+			int baseY = y + rowStartOffset + (i * STAT_ROW_HEIGHT);
+			int pointsMinusY = baseY - 15; // align buttons just above text line
+			int pointsPlusY = pointsMinusY;
+			int levelsMinusY = pointsMinusY;
+			int levelsPlusY = pointsMinusY;
+
+			// Background strip for row (subtle shading)
+			mc.getSurface().drawBoxAlpha(x + 1, baseY - 20, width - 2, STAT_ROW_HEIGHT - 4, (i % 2 == 0 ? WINDOW_BG : WINDOW_BG_SHADE), 90);
+
+			// Data
+			int expToNext = getExpToNextLevel(skillIdFinal);
+			int level = mc.getPlayerStatBase(skillIdFinal);
+			long totalExp = mc.getPlayerExperience(skillIdFinal);
+
+			// Labels & values
+			this.drawString(label + ":", x + PADDING_LEFT, baseY, 3, textColour);
+			this.drawString("" + level, x + COL_LEVEL_X_OFFSET + 7, baseY, 3, textColour);
+			this.drawString("" + expToNext, x + COL_POINTS_X_OFFSET + 10, baseY, 3, textColour);
+			this.drawString("" + totalExp, x + COL_TOTAL_EXP_X_OFFSET + 6, baseY, 3, textColour);
+
+			// Points +/- buttons
+			drawButton(COL_POINTS_MINUS_X + x, pointsMinusY, 20, 20, "@red@-", 6, false, new ButtonHandler() {
+				@Override void handle() {
+					mc.setPointsSkillId(skillIdFinal);
+					mc.setPointsOptionId(OPTION_DEC[idx]);
+					mc.showItemModX(InputXPrompt.reducePointsX, InputXAction.REDUCEPOINTS_X, true);
+				}
+			});
+			drawButton(COL_POINTS_PLUS_X + x, pointsPlusY, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
+				@Override void handle() {
+					mc.setPointsSkillId(skillIdFinal);
+					mc.setPointsOptionId(OPTION_INC[idx]);
+					mc.showItemModX(InputXPrompt.incPointsX, InputXAction.INCPOINTS_X, true);
+				}
+			});
+
+			// Level +/- buttons
+			drawButton(COL_LEVEL_MINUS_X + x, levelsMinusY, 20, 20, "@red@-", 6, false, new ButtonHandler() {
+				@Override void handle() {
+					mc.setPointsSkillId(skillIdFinal);
+					mc.setPointsOptionId(OPTION_DEC[idx]);
+					mc.showItemModX(InputXPrompt.reduceLevelsX, InputXAction.REDUCELEVELS_X, true);
+				}
+			});
+			drawButton(COL_LEVEL_PLUS_X + x, levelsPlusY, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
+				@Override void handle() {
+					mc.setPointsSkillId(skillIdFinal);
+					mc.setPointsOptionId(OPTION_INC[idx]);
+					mc.showItemModX(InputXPrompt.incLevelsX, InputXAction.INCLEVELS_X, true);
+				}
+			});
+		}
+
+		int lastRowBaseY = y + rowStartOffset + (SKILL_IDS.length - 1) * STAT_ROW_HEIGHT;
+		int bottomLineY = lastRowBaseY + (Config.S_WANT_OPENPK_PRESETS ? 11 : 14);
+		mc.getSurface().drawLineHoriz(x, bottomLineY, width, lineColour);
+		if (Config.S_WANT_OPENPK_PRESETS) {
+			int secondLineY = bottomLineY + 34;
+			mc.getSurface().drawLineHoriz(x, secondLineY, width, lineColour);
+		}
+
+		// Close button adjusted (still at top right)
+		drawCloseButton(x + width - 32, y + 4, 30, 20, "X", 2, new ButtonHandler() {
+			@Override void handle() { setVisible(false); }
 		});
 
-		this.drawString("Ranged:", x + 10, y + 168, 3, textColour);
-		this.drawString("" + mc.getPlayerExperience(RANGED), x + 231, y + 168, 3, textColour);
-		int nextLevelExpR = mc.getExperienceArray()[RANGED];
-		nextLevelExpR = mc.getExperienceArray()[mc.getPlayerStatBase(RANGED) - 1];
-		int nL3 = nextLevelExpR - mc.getPlayerExperience(RANGED);
-		this.drawString("               " + mc.getPlayerStatBase(RANGED) + "     " + nL3 + "", x + 10, y + 168, 3, textColour);
-		this.drawButton(x + 170, y + 153, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(RANGED);
-				mc.setPointsOptionId(REDUCE_RANGED);
-				mc.showItemModX(InputXPrompt.reducePointsX, InputXAction.REDUCEPOINTS_X, true);
+		if (Config.S_WANT_OPENPK_PRESETS) {
+			int presetY = bottomLineY + 6;
+			int presetWidth = 45;
+			int presetHeight = 20; // slightly smaller to free space
+			drawCloseButton(x + 265, presetY, 82, presetHeight, "Save Preset", 3, new ButtonHandler() {
+				@Override void handle() { mc.showItemModX(InputXPrompt.savePreset, InputXAction.SAVEPRESET_X, true); }
+			});
+			String[] presetNums = {"1","2","3","4","5"};
+			for (int i = 0; i < presetNums.length; i++) {
+				final int presetIndex = 13 + (i + 1);
+				int px = x + 5 + (i * 50);
+				drawCloseButton(px, presetY, presetWidth, presetHeight, presetNums[i], 3, new ButtonHandler() {
+					@Override void handle() {
+						try {
+							mc.packetHandler.getClientStream().newPacket(199);
+							mc.packetHandler.getClientStream().bufferBits.putByte(13);
+							mc.packetHandler.getClientStream().bufferBits.putByte(presetIndex);
+							mc.packetHandler.getClientStream().finishPacket();
+						} catch (NumberFormatException ex) {
+							System.out.println("load preset number format exception: " + ex);
+						}
+					}
+				});
 			}
-		});
-		this.drawButton(x + 200, y + 153, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(RANGED);
-				mc.setPointsOptionId(INCREASE_RANGED);
-				mc.showItemModX(InputXPrompt.incPointsX, InputXAction.INCPOINTS_X, true);
-			}
-		});
+		}
 
-		this.drawString("Prayer: ", x + 10, y + 208, 3, textColour);
-		this.drawString("" + mc.getPlayerExperience(PRAYER), x + 231, y + 208, 3, textColour);
-		int nextLevelExpP = mc.getExperienceArray()[PRAYER];
-		nextLevelExpP = mc.getExperienceArray()[mc.getPlayerStatBase(PRAYER) - 1];
-		int nL4 = nextLevelExpP - mc.getPlayerExperience(PRAYER);
-		this.drawString("               " + mc.getPlayerStatBase(PRAYER) + "     " + nL4 + "", x + 10, y + 208, 3, textColour);
-		this.drawButton(x + 170, y + 193, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(PRAYER);
-				mc.setPointsOptionId(REDUCE_PRAYER);
-				mc.showItemModX(InputXPrompt.reducePointsX, InputXAction.REDUCEPOINTS_X, true);
-			}
-		});
-		this.drawButton(x + 200, y + 193, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(PRAYER);
-				mc.setPointsOptionId(INCREASE_PRAYER);
-				mc.showItemModX(InputXPrompt.incPointsX, InputXAction.INCPOINTS_X, true);
-			}
-		});
+		// Footer info (smaller font & dynamic position, centered segments)
+		String footerA = "HP: " + mc.getPlayerStatBase(HITS);
+		String footerB = "Combat Level: " + mc.getLocalPlayer().level;
+		String footerC = "Points: " + mc.getPoints();
+		int footerBarHeight = 30;
+		int footerTop = y + height - footerBarHeight;
+		int segmentWidth = (width / 3) - 20;
+		// Center baseline: top + half bar + (fontHeight/2) plus manual adjust
+		int footerBaseline = footerTop + (footerBarHeight / 2) + (FOOTER_FONT_HEIGHT_APPROX / 2) + FOOTER_TEXT_BASELINE_ADJUST;
+		drawCenteredInSegment(footerA, x, segmentWidth, footerBaseline);
+		drawCenteredInSegment(footerB, x + segmentWidth, segmentWidth, footerBaseline);
+		drawCenteredInSegment(footerC, x + 2 * segmentWidth, width - 2 * segmentWidth, footerBaseline);
 
-		this.drawString("Magic: ", x + 10, y + 248, 3, textColour);
-		this.drawString("" + mc.getPlayerExperience(6), x + 231, y + 248, 3, textColour);
-		int nextLevelExpM = mc.getExperienceArray()[6];
-		nextLevelExpM = mc.getExperienceArray()[mc.getPlayerStatBase(6) - 1];
-		int nL5 = nextLevelExpM - mc.getPlayerExperience(6);
-		this.drawString("               " + mc.getPlayerStatBase(6) + "     " + nL5 + "", x + 10, y + 248, 3, textColour);
-		this.drawButton(x + 170, y + 233, 20, 20, "@red@-", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(MAGIC);
-				mc.setPointsOptionId(REDUCE_MAGIC);
-				mc.showItemModX(InputXPrompt.reducePointsX, InputXAction.REDUCEPOINTS_X, true);
-			}
-		});
-		this.drawButton(x + 200, y + 233, 20, 20, "@gre@+", 6, false, new ButtonHandler() {
-			@Override
-			void handle() {
-				mc.setPointsSkillId(MAGIC);
-				mc.setPointsOptionId(INCREASE_MAGIC);
-				mc.showItemModX(InputXPrompt.incPointsX, InputXAction.INCPOINTS_X, true);
-			}
-		});
-		this.drawString("HP: " + mc.getPlayerStatBase(HITS), x + 10, y + (Config.S_WANT_OPENPK_PRESETS ? 315 : 298), 3, textColour);
-		this.drawString("Points: " + mc.getPoints(), x + 232, y + (Config.S_WANT_OPENPK_PRESETS ? 315 : 298), 3, textColour);
-		this.drawString("Combat Level: " + mc.getLocalPlayer().level, x + 70, y + (Config.S_WANT_OPENPK_PRESETS ? 315 : 298), 3, textColour);
-
-		if (selectSkillMenu)
+		if (selectSkillMenu) {
 			mc.getSurface().drawBoxAlpha(x, y, width, height, 0, 192);
+		}
+	}
+
+	private int getExpToNextLevel(int skillId) {
+		int baseLevel = mc.getPlayerStatBase(skillId);
+		if (baseLevel <= 0) return 0;
+		int[] expArray = mc.getExperienceArray();
+		int targetIndex = Math.max(0, baseLevel - 1);
+		int nextLevelExp = expArray[targetIndex];
+		return nextLevelExp - mc.getPlayerExperience(skillId);
+	}
+
+	private void drawHeaderLabel(String text, int x, int y) {
+		this.drawString(text, x, y + 1, 2, TITLE_TEXT);
+	}
+
+	private void drawHeaderCentered(String text, int startX, int endX, int baselineY) {
+		int w = mc.getSurface().stringWidth(2, text);
+		int cx = startX + ((endX - startX) - w) / 2;
+		this.drawString(text, cx, baselineY + 1, 2, TITLE_TEXT);
+	}
+
+	// Added helper used for footer alignment
+	private void drawCenteredInSegment(String text, int segStart, int segWidth, int baselineY) {
+		int w = mc.getSurface().stringWidth(2, text);
+		int cx = segStart + (segWidth - w) / 2;
+		this.drawString(text, cx, baselineY, 2, textColour);
 	}
 
 	private void drawSelectSkillMenu() {
 		reposition();
-
-		mc.getSurface().drawBoxAlpha(x + 90, y + 5, 166, height - 10, panelColour, 90);
+		mc.getSurface().drawBoxAlpha(x + 90, y + 5, 166, height - 10, panelColour, 160);
 		mc.getSurface().drawBoxBorder(x + 90, 166, y + 5, height - 10, bordColour);
-
-		this.drawStringCentered("Select a skill to track", x - 12, y + 22, 3, textColour);
-
+		this.drawStringCentered("Select a skill to track", x - 12, y + 22, 3, TITLE_TEXT);
 		mc.getSurface().drawLineHoriz(x + 90, y + 30, 166, lineColour);
-
-		this.drawCloseButton(x + 237, y + 6, 18, 18, "X", 2, new ButtonHandler() {
-			@Override
-			void handle() {
+		drawCloseButton(x + 237, y + 6, 18, 18, "X", 2, new ButtonHandler() {
+			@Override void handle() {
 				experienceConfig.resetScrollIndex(experienceConfigScroll);
 				selectSkillMenu = false;
 			}
 		});
-
 		String[] skillNames = mc.getSkillNamesLong();
-
 		experienceConfig.clearList(experienceConfigScroll);
-
 		for (int i = 0; i < mudclient.skillCount; i++) {
 			experienceConfig.setListEntry(experienceConfigScroll, i, "@whi@" + skillNames[i], 0, (String) null, (String) null);
 		}
-
 		int index = experienceConfig.getControlSelectedListIndex(experienceConfigScroll);
 		if (index >= 0 && mc.mouseButtonClick == 1) {
 			mc.selectedSkill = index;
@@ -434,9 +303,7 @@ public final class PointInterface {
 			selectSkillMenu = false;
 			mc.setMouseClick(0);
 		}
-
 		experienceConfig.drawPanel();
-
 		Config.C_EXPERIENCE_COUNTER_MODE = 2;
 	}
 
@@ -454,9 +321,9 @@ public final class PointInterface {
 	}
 
 	private void drawCloseButton(int x, int y, int width, int height, String text, int font, ButtonHandler handler) {
-		int bgBtnColour = 0x333333; // grey
+		int bgBtnColour = BUTTON_BG;
 		if (mc.getMouseX() >= x && mc.getMouseY() >= y && mc.getMouseX() <= x + width && mc.getMouseY() <= y + height) {
-			bgBtnColour = 16711680; // blue
+			bgBtnColour = BUTTON_HOVER_BG;
 			if (mc.getMouseClick() == 1) {
 				handler.handle();
 				mc.setMouseClick(0);
@@ -464,18 +331,15 @@ public final class PointInterface {
 		}
 		mc.getSurface().drawBoxAlpha(x, y, width, height, bgBtnColour, 192);
 		mc.getSurface().drawBoxBorder(x, width, y, height, 0x242424);
-		mc.getSurface().drawString(text, x + (width / 2) - (mc.getSurface().stringWidth(font, text) / 2) - 1, y + height / 2 + 5, textColour, font);
+		int textY = y + (height - BUTTON_FONT_HEIGHT_APPROX) / 2 + BUTTON_FONT_HEIGHT_APPROX - 2; // refined centering
+		mc.getSurface().drawString(text, x + (width / 2) - (mc.getSurface().stringWidth(font, text) / 2) - 1, textY, textColour, font);
 	}
 
 	private void drawButton(int x, int y, int width, int height, String text, int font, boolean checked, ButtonHandler handler) {
-		int bgBtnColour = 0x333333; // grey
-		if (checked) {
-			bgBtnColour = 16711680; // red
-		}
+		int bgBtnColour = BUTTON_BG;
+		if (checked) bgBtnColour = BUTTON_ACTIVE_BG;
 		if (mc.getMouseX() >= x && mc.getMouseY() >= y && mc.getMouseX() <= x + width && mc.getMouseY() <= y + height && !selectSkillMenu) {
-			if (!checked) {
-				bgBtnColour = 0x6580B7; // blue
-			}
+			if (!checked) bgBtnColour = BUTTON_HOVER_BG;
 			if (mc.getMouseClick() == 1) {
 				handler.handle();
 				mc.setMouseClick(0);
@@ -483,7 +347,12 @@ public final class PointInterface {
 		}
 		mc.getSurface().drawBoxAlpha(x, y, width, height, bgBtnColour, 192);
 		mc.getSurface().drawBoxBorder(x, width, y, height, 0x242424);
-		mc.getSurface().drawString(text, x + (width / 2) - (mc.getSurface().stringWidth(font, text) / 2) - 1, y + height / 2 + 5, textColour, font);
+		int baseTextY = y + (height - BUTTON_FONT_HEIGHT_APPROX) / 2 + BUTTON_FONT_HEIGHT_APPROX - 2;
+		int textY = baseTextY;
+		if (text.indexOf('+') >= 0) {
+			textY += BUTTON_PLUS_ADDITIONAL_OFFSET; // lower '+' slightly
+		}
+		mc.getSurface().drawString(text, x + (width / 2) - (mc.getSurface().stringWidth(font, text) / 2) - 1, textY, textColour, font);
 	}
 
 	public boolean isVisible() {
