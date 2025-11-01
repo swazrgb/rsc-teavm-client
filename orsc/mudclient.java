@@ -466,6 +466,10 @@ public final class mudclient implements Runnable {
 	private String[] inputX_Lines = null;
 	private boolean inputX_OK = false;
 	private int inputX_Width = 0;
+	private boolean inputX_ConsumeNextClick = false; // one-frame swallow after closing
+	public boolean isInputXConsumeNextClick() {
+		return inputX_ConsumeNextClick;
+	}
 	private boolean insideTutorial = false;
 	private boolean insideBlackHole = false;
 	private int inventoryItemCount;

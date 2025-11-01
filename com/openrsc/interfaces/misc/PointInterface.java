@@ -335,25 +335,46 @@ public final class PointInterface {
 		mc.getSurface().drawString(text, x + (width / 2) - (mc.getSurface().stringWidth(font, text) / 2) - 1, textY, textColour, font);
 	}
 
-	private void drawButton(int x, int y, int width, int height, String text, int font, boolean checked, ButtonHandler handler) {
+	private void drawButton(int bx, int by, int w, int h, String text, int font, boolean checked, ButtonHandler handler) {
+		if (mc.inputX_Action != InputXAction.ACT_0 || mc.isInputXConsumeNextClick()) {
+			mc.getSurface().drawBoxAlpha(bx, by, w, h, BUTTON_BG, 192);
+			mc.getSurface().drawBoxBorder(bx, w, by, h, 0x242424);
+			int baseTextY = by + (h - BUTTON_FONT_HEIGHT_APPROX) / 2 + BUTTON_FONT_HEIGHT_APPROX - 2;
+			int textY = baseTextY;
+			if (text.indexOf('+') >= 0) textY += BUTTON_PLUS_ADDITIONAL_OFFSET;
+			mc.getSurface().drawString(text,
+					bx + (w / 2) - (mc.getSurface().stringWidth(font, text) / 2) - 1,
+					textY, textColour, font);
+			return;
+		}
+
 		int bgBtnColour = BUTTON_BG;
 		if (checked) bgBtnColour = BUTTON_ACTIVE_BG;
-		if (mc.getMouseX() >= x && mc.getMouseY() >= y && mc.getMouseX() <= x + width && mc.getMouseY() <= y + height && !selectSkillMenu) {
+
+		boolean inside = mc.getMouseX() >= bx && mc.getMouseY() >= by &&
+				mc.getMouseX() <= bx + w && mc.getMouseY() <= by + h && !selectSkillMenu;
+
+		if (inside) {
 			if (!checked) bgBtnColour = BUTTON_HOVER_BG;
 			if (mc.getMouseClick() == 1) {
 				handler.handle();
-				mc.setMouseClick(0);
+				mc.setMouseClick(0); // consume click
 			}
 		}
-		mc.getSurface().drawBoxAlpha(x, y, width, height, bgBtnColour, 192);
-		mc.getSurface().drawBoxBorder(x, width, y, height, 0x242424);
-		int baseTextY = y + (height - BUTTON_FONT_HEIGHT_APPROX) / 2 + BUTTON_FONT_HEIGHT_APPROX - 2;
+
+		mc.getSurface().drawBoxAlpha(bx, by, w, h, bgBtnColour, 192);
+		mc.getSurface().drawBoxBorder(bx, w, by, h, 0x242424);
+
+		int baseTextY = by + (h - BUTTON_FONT_HEIGHT_APPROX) / 2 + BUTTON_FONT_HEIGHT_APPROX - 2;
 		int textY = baseTextY;
 		if (text.indexOf('+') >= 0) {
 			textY += BUTTON_PLUS_ADDITIONAL_OFFSET; // lower '+' slightly
 		}
-		mc.getSurface().drawString(text, x + (width / 2) - (mc.getSurface().stringWidth(font, text) / 2) - 1, textY, textColour, font);
+		mc.getSurface().drawString(text,
+				bx + (w / 2) - (mc.getSurface().stringWidth(font, text) / 2) - 1,
+				textY, textColour, font);
 	}
+
 
 	public boolean isVisible() {
 		return visible;
