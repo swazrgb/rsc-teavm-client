@@ -946,7 +946,7 @@ public class PacketHandler {
 		int wantBankPresets, wantParties, miningRocksExtended, movePerFrame, wantLeftclickWebs, npcKillCounters;
 		int wantCustomUI, wantGlobalFriend, characterCreationMode, skillingExpRate, wantHarvesting, hideLoginBox;
 		int globalFriendChat, wantRightClickTrade, featuresSleep, wantExtendedCatsBehavior, wantCertAsNotes, wantOpenPkPoints, openPkPointsToGpRatio, wantOpenPkPresets;
-		int disableMinimapRotation, allowBeardedLadies, prideMonth, groundItemNames;
+		int disableMinimapRotation, allowBeardedLadies, prideMonth, groundItemNames, wantNatureRuneProtection;
 
 		String logoSpriteID;
 
@@ -1040,6 +1040,7 @@ public class PacketHandler {
 			MiscFunctions.RSA_EXPONENT = new BigInteger(this.getClientStream().readString()); // 87
 			MiscFunctions.RSA_MODULUS = new BigInteger(this.getClientStream().readString()); // 88
 			groundItemNames = this.getClientStream().getUnsignedByte(); // 89
+			wantNatureRuneProtection = this.getClientStream().getUnsignedByte(); // 90
 		} else {
 			serverName = packetsIncoming.readString(); // 1
 			serverNameWelcome = packetsIncoming.readString(); // 2
@@ -1130,6 +1131,7 @@ public class PacketHandler {
 			MiscFunctions.RSA_EXPONENT = new BigInteger(packetsIncoming.readString()); // 87
 			MiscFunctions.RSA_MODULUS = new BigInteger(packetsIncoming.readString()); // 88
 			groundItemNames = packetsIncoming.getUnsignedByte(); // 89
+			wantNatureRuneProtection = packetsIncoming.getUnsignedByte(); // 90
 		}
 
 		if (Config.DEBUG) {
@@ -1222,7 +1224,8 @@ public class PacketHandler {
 					"\nS_PRIDE_MONTH " + prideMonth + // 86
 					"\nRSA_EXPONENT " + MiscFunctions.RSA_EXPONENT + // 87
 					"\nRSA_MODULUS " + MiscFunctions.RSA_MODULUS + // 88
-					"\nS_GROUND_ITEM_NAMES " + groundItemNames // 89
+					"\nS_GROUND_ITEM_NAMES " + groundItemNames + // 89
+					"\nS_WANT_NATURE_RUNE_PROTECTION " + wantNatureRuneProtection // 90
 			);
 		}
 
@@ -1317,6 +1320,7 @@ public class PacketHandler {
 		props.setProperty("S_ALLOW_BEARDED_LADIES", allowBeardedLadies == 1 ? "true" : "false"); // 85
 		props.setProperty("S_PRIDE_MONTH", prideMonth == 1 ? "true" : "false"); // 86
 		props.setProperty("S_GROUND_ITEM_NAMES", groundItemNames == 1 ? "true" : "false"); // 89
+		props.setProperty("S_WANT_NATURE_RUNE_PROTECTION", wantNatureRuneProtection == 1 ? "true" : "false"); // 90
 		Config.updateServerConfiguration(props);
 
 		mc.authenticSettings = !(
@@ -1330,7 +1334,8 @@ public class PacketHandler {
 				|| Config.S_EXPERIENCE_COUNTER_TOGGLE || Config.S_WANT_GLOBAL_CHAT
 				|| Config.S_EXPERIENCE_DROPS_TOGGLE || Config.S_ITEMS_ON_DEATH_MENU
 				|| Config.S_HIDE_LOGIN_BOX || Config.S_WANT_GLOBAL_FRIEND
-				|| Config.S_GROUND_ITEM_NAMES);
+				|| Config.S_GROUND_ITEM_NAMES
+				|| Config.S_WANT_NATURE_RUNE_PROTECTION );
 
 
 		if (!mc.gotInitialConfigs) {
@@ -2146,6 +2151,7 @@ public class PacketHandler {
 		mc.setStatusBar(packetsIncoming.getUnsignedByte()); // 43
 		mc.setShowRecentNPCKC(packetsIncoming.getUnsignedByte() == 1); // 44
 		mc.setGroundItemNames(packetsIncoming.getUnsignedByte() == 1); // 45
+		mc.setNatureRuneProtection(packetsIncoming.getUnsignedByte() == 1); // 46
 	}
 
 	private void togglePrayer(int length) {

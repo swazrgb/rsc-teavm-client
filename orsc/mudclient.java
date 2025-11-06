@@ -776,6 +776,33 @@ public final class mudclient implements Runnable {
 		}
 	}
 
+	private static void saveClientSetting(String key, String value) {
+		Properties props = loadClientSettings();
+		props.setProperty(key, value);
+
+		saveClientSettings(props);
+	}
+
+	private static Properties loadClientSettings() {
+		Properties props = new Properties();
+		try (FileInputStream in = new FileInputStream("./clientSettings.conf")) {
+			props.load(in);
+		} catch (IOException e) {
+			System.out.println("Error loading client settings.");
+			e.printStackTrace();
+		}
+		return props;
+	}
+
+	private static void saveClientSettings(Properties props) {
+		try (FileOutputStream out = new FileOutputStream("./clientSettings.conf")) {
+			props.store(out, "Client settings");
+		} catch (IOException e) {
+			System.out.println("Something went wrong saving client settings");
+			e.printStackTrace();
+		}
+	}
+
 	private static boolean isValidEmailAddress(String email) {
 		boolean stricterFilter = true;
 		String stricterFilterString = "[A-Z0-9a-z._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,4}";
@@ -8067,7 +8094,10 @@ public final class mudclient implements Runnable {
 								// Ugly checks for curse and enfeeble so you can cast on talismans
 								if (spellDef.getSpellType() == 3
 									|| (S_WANT_RUNECRAFT && (this.selectedSpell == 9 || this.selectedSpell == 44))) {
-
+									//Add Nature Rune alchemy protection if we're on a non-authentic client.
+									if (!authenticSettings && C_WANT_NATURE_RUNE_PROTECTION && (this.selectedSpell == 10 || this.selectedSpell == 28) && EntityHandler.getItemDef(id).getName().equals("Nature-Rune")) {
+										return;
+									}
 									this.menuCommon.addCharacterItem_WithID(var5,
 										"@lre@" + EntityHandler.getItemDef(id).getName(),
 										MenuItemAction.ITEM_CAST_SPELL,
@@ -9811,6 +9841,17 @@ public final class mudclient implements Runnable {
 					"@whi@Party Invitation - @gre@Receive", 19, null, null);
 			}
 
+			//Only display this setting if we're on a non-authentic client.
+			if (!authenticSettings) {
+				if (!C_WANT_NATURE_RUNE_PROTECTION) {
+					this.panelSettings.setListEntry(this.controlSettingPanel, index++,
+						"@whi@Nat Rune Alch Protection - @red@Off", 47, null, null);
+				} else {
+					this.panelSettings.setListEntry(this.controlSettingPanel, index++,
+						"@whi@Nat Rune Alch Protection - @gre@On", 47, null, null);
+				}
+			}
+
 			// report abuse - keep at bottom of list since it's not a toggle
 			this.panelSettings.setListEntry(this.controlSettingPanel, index++,
 				"@whi@Report Abuse", 18, null, null);
@@ -9992,6 +10033,8 @@ public final class mudclient implements Runnable {
 			settingIndex = this.panelSettings.getControlSelectedListInt(this.controlSettingPanel, checkPosition);
 		else
 			settingIndex = checkPosition;
+
+		//System.out.println("Setting index is: " + settingIndex); // DO NOT REMOVE THIS, IT IS VERY HELPFUL
 
 		// camera mode - byte index 0
 		if (settingIndex == 0 && this.mouseButtonClick == 1) {
@@ -10276,6 +10319,15 @@ public final class mudclient implements Runnable {
 				this.packetHandler.getClientStream().bufferBits.putByte(this.partyInviteBlockSetting ? 1 : 0);
 				this.packetHandler.getClientStream().finishPacket();
 			}
+		}
+
+		// nature rune protection toggle - byte index 47
+		if (settingIndex == 47 && this.mouseButtonClick == 1 && S_WANT_NATURE_RUNE_PROTECTION) {
+			C_WANT_NATURE_RUNE_PROTECTION = !C_WANT_NATURE_RUNE_PROTECTION;
+			this.packetHandler.getClientStream().newPacket(111);
+			this.packetHandler.getClientStream().bufferBits.putByte(46);
+			this.packetHandler.getClientStream().bufferBits.putByte(C_WANT_NATURE_RUNE_PROTECTION ? 1 : 0);
+			this.packetHandler.getClientStream().finishPacket();
 		}
 
 		// adjust for previous settings
@@ -18134,6 +18186,10 @@ public final class mudclient implements Runnable {
 
 	public void setGroundItemNames(boolean b) {
 		C_GROUND_ITEM_NAMES = b;
+	}
+
+	public void setNatureRuneProtection(boolean b) {
+		C_WANT_NATURE_RUNE_PROTECTION = b;
 	}
 
 	public void setFightModeSelectorToggle(int i) {

@@ -43,6 +43,7 @@ public class Config {
 	public static boolean C_HIDE_UNDERGROUND_FLICKER = false;
 	public static int C_SHOW_GROUND_ITEMS = 0;
 	public static boolean C_GROUND_ITEM_NAMES = false;
+	public static boolean C_WANT_NATURE_RUNE_PROTECTION = true; // Important that nature rune protection is true by default, otherwise we might have some very unhappy players!
 	public static boolean C_MESSAGE_TAB_SWITCH = false;
 	public static boolean C_NAME_CLAN_TAG_OVERLAY = false;
 	public static boolean C_SIDE_MENU_OVERLAY = false;
@@ -101,6 +102,7 @@ public class Config {
 	public static boolean S_FOG_TOGGLE = false;
 	public static boolean S_GROUND_ITEM_TOGGLE = false;
 	public static boolean S_GROUND_ITEM_NAMES = false;
+	public static boolean S_WANT_NATURE_RUNE_PROTECTION = true; // Important that nature rune protection is true by default, otherwise we might have some very unhappy players!
 	public static boolean S_AUTO_MESSAGE_SWITCH_TOGGLE = false;
 	public static boolean S_BATCH_PROGRESSION = false;
 	public static boolean S_SIDE_MENU_TOGGLE = false;
