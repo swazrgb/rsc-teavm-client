@@ -4807,7 +4807,7 @@ public final class mudclient implements Runnable {
 		this.packetHandler.getClientStream().finishPacket();
 	}
 
-	private void drawBotStatus() {
+	private void drawStatusOverlay() {
 		int y = 116;
 		int currentHits = this.playerStatCurrent[3];
 		int maxHits = this.playerStatBase[3];
@@ -5387,7 +5387,7 @@ public final class mudclient implements Runnable {
 							this.showUiWildWarn = 1;
 						}
 					}
-					this.drawBotStatus();
+					this.drawStatusOverlay();
 					int i2 = 75;
 					int index;
 					int var12;

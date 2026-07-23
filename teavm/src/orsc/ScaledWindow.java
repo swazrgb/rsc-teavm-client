@@ -2,7 +2,7 @@ package orsc;
 
 /**
  * Browser stub of the window/scaling manager. Enough for the client to compile; the browser render
- * surface (canvas + framebuffer, via HeadlessSurface/BrowserClientPort) is wired in the TeaVM phase.
+ * surface (canvas + framebuffer, via BrowserClientPort) is wired in the TeaVM phase.
  */
 public class ScaledWindow {
 

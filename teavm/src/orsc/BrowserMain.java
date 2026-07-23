@@ -71,9 +71,6 @@ public final class BrowserMain {
     p.setProperty("SERVER_NAME", "OpenRSC");
     Config.updateServerConfiguration(p);
     Config.SERVER_PORT = port;
-    // Uranium is a members world. MEMBER_WORLD gates EntityHandler.load(): when false it renames every
-    // members item to "Members object". It's never assigned from the config handshake in this client,
-    // so set it before the item defs load, or the bot's members items show as placeholders.
     Config.MEMBER_WORLD = true;
 
     // Render-scaling scalar lists the settings UI reads (the desktop fills these in ScaledWindow; our
