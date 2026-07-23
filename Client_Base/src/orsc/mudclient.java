@@ -395,6 +395,9 @@ public final class mudclient implements Runnable {
 	private int appearanceHeadGender = 1;
 	private int appearanceHeadType = 0;
 	private int autoLoginTimeout = 0;
+	/** Browser auto-login (BrowserMain sets these from the page's ?user=/?pass= params). */
+	public String pendingAutoLoginUser = null;
+	public String pendingAutoLoginPass = "";
 	private int cameraAngle = 1;
 	private int cameraPositionX = 0;
 	private int cameraPositionZ = 0;
@@ -4804,6 +4807,42 @@ public final class mudclient implements Runnable {
 		this.packetHandler.getClientStream().finishPacket();
 	}
 
+	private void drawStatusOverlay() {
+		int y = 116;
+		int currentHits = this.playerStatCurrent[3];
+		int maxHits = this.playerStatBase[3];
+		int currentPrayer = this.playerStatCurrent[5];
+		int maxPrayer = this.playerStatBase[5];
+
+		int hitsPercentage = maxHits <= 0 ? 100 : Math.min((currentHits * 100) / maxHits, 100);
+		int hitsColor = hitsPercentage <= 25 ? 0xff0000 : hitsPercentage <= 50 ? 0xffff00 : 0x00ff00;
+
+		this.drawProgressBar(currentHits, maxHits, 0x000000, hitsColor, 0xffffff, 7, y + 2, 80, 14);
+		y += 16;
+		this.drawProgressBar(currentPrayer, maxPrayer, 0x000000, 0x8BE9FD, 0xffffff, 7, y + 2, 80, 14);
+		y += 14;
+		y += 14;
+		this.getSurface().drawString("Coords: @red@(@whi@" + (this.playerLocalX + this.midRegionBaseX)
+			+ "@red@, @whi@" + (this.playerLocalZ + this.midRegionBaseZ) + "@red@)", 7, y, 0xFFFFFF, 1);
+		y += 14;
+		this.getSurface().drawString("Fatigue: " + this.statFatigue + "@red@%", 7, y, 0xFFFFFF, 1);
+	}
+
+	private void drawProgressBar(int current, int maximum, int bgColor, int fgColor, int borderColor,
+								 int x, int y, int width, int height) {
+		int currentPercent = maximum <= 0 ? 100 : Math.min((current * 100) / maximum, 100);
+		int currentBarWidth = currentPercent == 100 ? width : (width * currentPercent) / 100;
+		this.getSurface().drawBoxAlpha(x, y, width, height, bgColor, 255);
+		this.getSurface().drawBoxAlpha(x, y, currentBarWidth, height, fgColor, 255);
+		this.getSurface().drawBoxBorder(x, width, y, height, borderColor);
+		this.getSurface().drawShadowText(String.valueOf(current),
+			x + 4 + (this.getSurface().stringWidth(1, String.valueOf(current)) / 2),
+			y + (height / 2) - 3, 0xffffff, 1, true);
+		this.getSurface().drawShadowText(String.valueOf(maximum),
+			x + width - (5 * String.valueOf(maximum).length()),
+			y + (height / 2) - 3, 0xffffff, 1, true);
+	}
+
 	private void drawGame(int var1) {
 		try {
 
@@ -5348,6 +5387,7 @@ public final class mudclient implements Runnable {
 							this.showUiWildWarn = 1;
 						}
 					}
+					this.drawStatusOverlay();
 					int i2 = 75;
 					int index;
 					int var12;
@@ -7896,7 +7936,8 @@ public final class mudclient implements Runnable {
 									this.menuCommon.addCharacterItem(this.npcs[var9].npcId, MenuItemAction.NPC_EXAMINE,
 										"Examine",
 										"@yel@" + EntityHandler.getNpcDef(this.npcs[var9].npcId).getName()
-											+ (localPlayer.isDev() ? " @or1@(" + this.npcs[var9].npcId + ")" : ""));
+											+ (localPlayer.isDev() ? " @or1@(" + this.npcs[var9].npcId
+												+ ", idx " + this.npcs[var9].serverIndex + ")" : ""));
 								} else {
 									this.menuCommon.addCharacterItem_WithID(this.npcs[var9].serverIndex,
 										"@yel@" + EntityHandler.getNpcDef(this.npcs[var9].npcId).getName(),
@@ -10065,13 +10106,9 @@ public final class mudclient implements Runnable {
 		}
 
 		// hide roofs toggle - byte index 26
+		// Purely client-side: flip the flag locally and don't persist to the server.
 		if (settingIndex == 26 && this.mouseButtonClick == 1 && S_SHOW_ROOF_TOGGLE) {
 			C_HIDE_ROOFS = !C_HIDE_ROOFS;
-			this.packetHandler.getClientStream().newPacket(111);
-			this.packetHandler.getClientStream().bufferBits.putByte(26);
-			boolean optionHideRoofs = C_HIDE_ROOFS;
-			this.packetHandler.getClientStream().bufferBits.putByte(optionHideRoofs ? 1 : 0);
-			this.packetHandler.getClientStream().finishPacket();
 		}
 
 		// fog toggle - byte index 27
@@ -12471,6 +12508,17 @@ public final class mudclient implements Runnable {
 
 			if (this.m_Zb > 0) {
 				--this.m_Zb;
+			}
+
+			// Browser auto-login: log in as the ?user= given on the page URL, from whatever login
+			// sub-screen we're on (0 = welcome menu). Fires once.
+			if (this.pendingAutoLoginUser != null) {
+				String u = this.pendingAutoLoginUser;
+				this.pendingAutoLoginUser = null;
+				this.setUsername(u);
+				this.password = this.pendingAutoLoginPass;
+				this.autoLoginTimeout = 2;
+				this.login(-12, this.password, u, false);
 			}
 
 			if (this.loginScreenNumber != 0) {
@@ -18170,7 +18218,10 @@ public final class mudclient implements Runnable {
 	}
 
 	public void setOptionHideRoofs(boolean b) {
-		C_HIDE_ROOFS = b;
+		// Hide roofs is a purely client-side option, enabled by default (see
+		// Config.C_HIDE_ROOFS). Ignore the server-persisted per-account value so the
+		// client-side default/choice always wins.
+//		C_HIDE_ROOFS = b;
 	}
 
 	public void setOptionHideUndergroundFlicker(boolean b) {
@@ -18337,7 +18388,9 @@ public final class mudclient implements Runnable {
 	}
 
 	public int getCameraPitch() {
-		return this.isInFirstPersonView() ? this.cameraPitch : DEFAULT_CAMERA_PITCH;
+		// Honor the adjustable pitch in third person too (middle-drag in BrowserClientPort);
+		// toggleFirstPersonView still resets it to a sane baseline on each mode switch.
+		return this.cameraPitch;
 	}
 
 	class XPNotification {

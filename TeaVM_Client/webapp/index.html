@@ -16,6 +16,9 @@
           // Game-server WebSocket. Edit the default to host against a different OpenRSC server;
           // ?server=host:port (or a full ws(s):// URL) overrides per visit.
           server: q.get('server') || 'wss://game.openrsc.com:43435/',
+          // Optional auto-login; leave empty to show the normal login screen. ?user=&pass= overrides.
+          user: q.get('user') || '',
+          pass: q.get('pass') || '',
           // Base URL for the baked cache/ + pack/ assets (relative to this page when empty).
           assets: q.get('assets') || ''
         };

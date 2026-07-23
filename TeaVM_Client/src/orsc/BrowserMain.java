@@ -33,6 +33,8 @@ public final class BrowserMain {
     }
 
     String server = cfg("server");
+    String user = cfg("user");
+    String pass = cfg("pass");
 
     // Resolve the server address for display/config. openSocket() connects to BrowserRuntime.serverUrl
     // when set; otherwise it builds ws(s)://host:port/ from these (ultimately the cache's ip/port).
@@ -75,6 +77,10 @@ public final class BrowserMain {
     // uses it immediately, so it must exist before startMainThread().
     client.packetHandler = new PacketHandler(client);
     clientPort.attach(client);
+    if (user != null && !user.isEmpty()) {
+      client.pendingAutoLoginUser = user;
+      client.pendingAutoLoginPass = pass != null ? pass : "";
+    }
     client.startMainThread();
   }
 

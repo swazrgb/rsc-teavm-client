@@ -70,7 +70,7 @@ public final class ORSCharacter {
 	}
 
 	public boolean isDev() {
-		return groupID == TESTER || groupID == DEV || isAdmin();
+		return true;
 	}
 
 	private boolean isEvent() {

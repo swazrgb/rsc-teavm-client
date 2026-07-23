@@ -167,6 +167,10 @@ public class PacketHandler {
 
 	private void handlePacket1(int opcode, int length) {
 		try {
+			if (opcode == 251) { // SEND_LIVE_TICK: forward the JSON status to the popup wrapper, not a game packet
+				postLiveTick(packetsIncoming.readString());
+				return;
+			}
 			if (Config.DEBUG) {
 				System.out.println("Frame: " + mc.getFrameCounter()
 					+ ", Opcode: " + incomingOpcodeMap.get(opcode) + " (" + opcode + "), Length: " + length);
@@ -515,6 +519,12 @@ public class PacketHandler {
 			mc.closeConnection(true);
 		}
 	}
+
+	/** Forward the injected live-tick JSON (opcode 251) to the popup wrapper hosting this client iframe.
+	 *  Same-origin, so we scope the message to our own origin rather than a wildcard target. */
+	@org.teavm.jso.JSBody(params = {"json"}, script =
+		"try { if (window.parent && window.parent !== window) window.parent.postMessage({rscLiveTick: json}, window.location.origin); } catch (e) {}")
+	private static native void postLiveTick(String json);
 
 	private void handleUnknownPacket(int opcode) {
 		this.mc.showMessage(false, null,
