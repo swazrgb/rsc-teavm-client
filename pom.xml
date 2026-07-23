@@ -1,0 +1,151 @@
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <groupId>openrsc</groupId>
+  <artifactId>client-base-teavm</artifactId>
+  <version>1.0-SNAPSHOT</version>
+  <packaging>war</packaging>
+
+  <!-- Browser (TeaVM) build of the OpenRSC client. The layout mirrors OpenRSC's own split: the
+       shared, platform-agnostic client lives in Client_Base/src, and TeaVM_Client/src is the browser
+       launcher (entry point + browser platform classes: soundPlayer/osConfig/… + WebSocket/XHR/canvas
+       shims) — the analogue of OpenRSC's PC_Client / Android_Client. Both source roots are compiled
+       together here (Client_Base can't compile standalone; it references the launcher's platform
+       classes by name), exactly as OpenRSC compiles Client_Base with one launcher.
+
+       BUILD JDK: builds on the repo's default JDK (currently 26). teavm-maven-plugin 0.15.0 needs
+       Java 17+ to run (its mojo is class file v61); anything from 17 up works, so no module-specific
+       toolchain pin is needed. `java.version` below is only the CLIENT bytecode level TeaVM transpiles
+       (kept at 11), NOT the JDK that runs the build — modern javac still supports source/target 11. -->
+
+  <properties>
+    <!-- Target bytecode level for the client sources TeaVM consumes — NOT the build JDK (see above). -->
+    <java.version>11</java.version>
+    <teavm.version>0.15.0</teavm.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <!-- Fast client build: minified + FULL optimization (this is what cut the JS compile/eval cost).
+         Source maps stay ON — they map the minified output back to Java sources for debugging and cost
+         nothing at runtime (the .map is fetched only when devtools is open). For an unminified build:
+         -Dteavm.minify=false -Dteavm.opt=SIMPLE -->
+    <teavm.minify>true</teavm.minify>
+    <teavm.sourcemaps>true</teavm.sourcemaps>
+    <teavm.opt>FULL</teavm.opt>
+    <!-- OpenRSC client cache the CacheBaker transforms into static assets at build time. Defaults to
+         the sibling openrsc checkout; override with -Dopenrsc.cache.dir=/path/to/Client_Base/Cache.
+         The baked client bundles these, so rebuild when the cache changes. -->
+    <openrsc.cache.dir>${project.basedir}/../openrsc/Client_Base/Cache</openrsc.cache.dir>
+  </properties>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-classlib</artifactId>
+      <version>${teavm.version}</version>
+      <scope>provided</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.teavm</groupId>
+      <artifactId>teavm-jso-apis</artifactId>
+      <version>${teavm.version}</version>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
+
+  <build>
+    <!-- Shared client (Client_Base/src) is the primary source root; the browser launcher
+         (TeaVM_Client/src) is added below, so both compile into one graph TeaVM transpiles. -->
+    <sourceDirectory>Client_Base/src</sourceDirectory>
+    <plugins>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.6.0</version>
+        <executions>
+          <execution>
+            <id>add-teavm-client-src</id>
+            <phase>generate-sources</phase>
+            <goals>
+              <goal>add-source</goal>
+            </goals>
+            <configuration>
+              <sources>
+                <source>TeaVM_Client/src</source>
+              </sources>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <version>3.13.0</version>
+        <configuration>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <artifactId>maven-war-plugin</artifactId>
+        <version>3.4.0</version>
+        <configuration>
+          <warSourceDirectory>TeaVM_Client/webapp</warSourceDirectory>
+          <webResources>
+            <resource>
+              <directory>${project.build.directory}/generated/js</directory>
+            </resource>
+          </webResources>
+        </configuration>
+      </plugin>
+
+      <plugin>
+        <groupId>org.teavm</groupId>
+        <artifactId>teavm-maven-plugin</artifactId>
+        <version>${teavm.version}</version>
+        <executions>
+          <execution>
+            <id>web-client</id>
+            <goals>
+              <goal>compile</goal>
+            </goals>
+            <configuration>
+              <targetDirectory>${project.build.directory}/generated/js/teavm</targetDirectory>
+              <mainClass>orsc.BrowserMain</mainClass>
+              <minifying>${teavm.minify}</minifying>
+              <debugInformationGenerated>false</debugInformationGenerated>
+              <sourceMapsGenerated>${teavm.sourcemaps}</sourceMapsGenerated>
+              <sourceFilesCopied>${teavm.sourcemaps}</sourceFilesCopied>
+              <optimizationLevel>${teavm.opt}</optimizationLevel>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+
+      <!-- Bake ../openrsc/Client_Base/Cache into static assets (pack/ + cache/) under the war's
+           webResources dir, so the packaged client is self-contained and statically hostable. Runs
+           before the war is assembled. -->
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>exec-maven-plugin</artifactId>
+        <version>3.1.0</version>
+        <executions>
+          <execution>
+            <id>bake-cache</id>
+            <phase>prepare-package</phase>
+            <goals>
+              <goal>java</goal>
+            </goals>
+            <configuration>
+              <mainClass>orsc.tools.CacheBaker</mainClass>
+              <arguments>
+                <argument>${openrsc.cache.dir}</argument>
+                <argument>${project.build.directory}/generated/js</argument>
+              </arguments>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
+</project>
