@@ -9543,7 +9543,10 @@ public final class mudclient implements Runnable {
 		// rendering scalar - byte index 45
 
 		int scalarOptionIdx = wantMembers() ? 2 : 1;
-		boolean isScalarOptionOffered = !isAndroid();
+		// integerScalars/interpolationScalars are null in the browser build (it renders at native window
+		// resolution, not by upscaling a fixed 512x346 base), so the scaling option is hidden there
+		// rather than showing a dead control.
+		boolean isScalarOptionOffered = !isAndroid() && integerScalars != null;
 		boolean isScalarOptionShowing = panelSettings.controlScrollAmount[0] <= scalarOptionIdx && isScalarOptionOffered;
 
 		if (isScalarOptionOffered) {
@@ -10050,7 +10053,7 @@ public final class mudclient implements Runnable {
 		/* rendering scalar - (would be byte index 45) */
 
 		int scalarOptionIdx = wantMembers() ? 2 : 1;
-		boolean isScalarOptionShowing = !isAndroid() && panelSettings.controlScrollAmount[0] <= scalarOptionIdx;
+		boolean isScalarOptionShowing = !isAndroid() && integerScalars != null && panelSettings.controlScrollAmount[0] <= scalarOptionIdx;
 
 		if (isScalarOptionShowing) {
 			int yPos = yFromTopDistance + ((scalarOptionIdx - panelSettings.controlScrollAmount[0] + 1) * 15);

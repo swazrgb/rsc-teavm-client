@@ -1,7 +1,5 @@
 package orsc;
 
-import java.util.ArrayList;
-import java.util.List;
 import java.util.Properties;
 import orsc.multiclient.BrowserClientPort;
 import orsc.net.WebSocketConn;
@@ -72,19 +70,6 @@ public final class BrowserMain {
     Config.updateServerConfiguration(p);
     Config.SERVER_PORT = port;
     Config.MEMBER_WORLD = true;
-
-    // Render-scaling scalar lists the settings UI reads (the desktop fills these in ScaledWindow; our
-    // stub doesn't, and they default to null → NPE when the "General" options tab is drawn).
-    List<Float> integerScalars = new ArrayList<>();
-    for (float i = 1.0f; i <= 3.0f; i++) {
-      integerScalars.add(i);
-    }
-    mudclient.integerScalars = integerScalars;
-    List<Float> interpolationScalars = new ArrayList<>();
-    for (float i = 1.0f; i <= 3.0f; i += 0.5f) {
-      interpolationScalars.add(i);
-    }
-    mudclient.interpolationScalars = interpolationScalars;
 
     BrowserClientPort clientPort = new BrowserClientPort();
     mudclient client = new mudclient(clientPort);
