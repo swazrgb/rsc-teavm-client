@@ -181,21 +181,9 @@ public class GenUtil {
 	}
 
 	private static byte[] createChecksum(String filename) throws Exception {
-		InputStream fis =  new FileInputStream(filename);
-
-		byte[] buffer = new byte[1024];
-		MessageDigest complete = MessageDigest.getInstance("MD5");
-		int numRead;
-
-		do {
-			numRead = fis.read(buffer);
-			if (numRead > 0) {
-				complete.update(buffer, 0, numRead);
-			}
-		} while (numRead != -1);
-
-		fis.close();
-		return complete.digest();
+		// Browser build: no local-filesystem MD5 (TeaVM lacks MessageDigest/FileInputStream; the cache
+		// is fetched over XHR, not verified against MD5.SUM here).
+		return new byte[0];
 	}
 
 	public static String getMD5Checksum(String filename) throws Exception {

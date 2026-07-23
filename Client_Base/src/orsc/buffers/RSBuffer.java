@@ -321,7 +321,11 @@ public class RSBuffer extends RSBuffer_Base {
 			byte[] encodedBuffer = new byte[pointerPosition];
 
 			this.readBytes(pointerPosition, encodedBuffer);
-			BigInteger var7 = new BigInteger(encodedBuffer);
+			// Keep the message non-negative before modPow. new BigInteger(encodedBuffer) is signed, so a
+			// high bit in byte 0 makes it negative; TeaVM's modPow/toByteArray return null for a negative
+			// base. m.mod(n).modPow(e,n) is identical to m.modPow(e,n) on the JVM (so the server still
+			// decrypts correctly) but always feeds modPow a value in [0, n).
+			BigInteger var7 = new BigInteger(encodedBuffer).mod(var3);
 			BigInteger var8 = var7.modPow(var1, var3);
 			byte[] var9 = var8.toByteArray();
 			this.packetEnd = 0;

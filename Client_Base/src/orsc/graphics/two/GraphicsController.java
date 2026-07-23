@@ -19,7 +19,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
+// ZipFile replaced by BrowserZipFile (XHR, in-memory) for the browser build
 
 public class GraphicsController {
 
@@ -59,7 +59,7 @@ public class GraphicsController {
 	public Map<String, Map<String, Entry>> spriteTree = new HashMap<>();
 	// public int[][] image2D_pixels;
 	private int[] m_Xb;
-	private ZipFile spriteArchive;
+	private BrowserZipFile spriteArchive;
 
 	GraphicsController(int var1, int var2, int var3) {
 		try {
@@ -70,12 +70,12 @@ public class GraphicsController {
 			this.width2 = var1;
 			try {
 				if (!Config.S_WANT_CUSTOM_SPRITES) {
-					spriteArchive = new ZipFile(Config.F_CACHE_DIR + File.separator + "video" + File.separator + "Authentic_Sprites.orsc");
+					spriteArchive = new BrowserZipFile(Config.F_CACHE_DIR + File.separator + "video" + File.separator + "Authentic_Sprites.orsc");
 					sprites = new Sprite[var3];
 				}
 			} catch (Exception e) {
 				e.printStackTrace();
-				System.exit(1);
+				// System.exit(1); // browser: cannot exit process
 			}
 		} catch (RuntimeException var7) {
 			throw GenUtil.makeThrowable(var7, "ua.<init>(" + var1 + ',' + var2 + ',' + var3 + ')' + ')');
@@ -2953,7 +2953,7 @@ public class GraphicsController {
 		return true;
 	}
 
-	public static ArrayList<Sprite> unpackSpriteData(ZipFile ioe, ZipEntry zipEntry) throws IOException {
+	public static ArrayList<Sprite> unpackSpriteData(BrowserZipFile ioe, ZipEntry zipEntry) throws IOException {
 		ArrayList<Sprite> sprites = new ArrayList<>();
 
 		try {

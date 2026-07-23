@@ -188,64 +188,13 @@ public class Config {
 	 * @param force
 	 */
 	private static void saveConfiguration(boolean force) {
-		Field[] fields = Config.class.getDeclaredFields();
-		for (Field f : fields) {
-			if (f.getName().startsWith("F_"))
-				continue;
-			if (Modifier.isStatic(f.getModifiers()) && !Modifier.isFinal(f.getModifiers())) {
-				try {
-					if (force || !prop.containsKey(f.getName())
-						|| !prop.get(f.getName()).toString().equalsIgnoreCase(f.get(null).toString())) {
-						Class<?> t = f.getType();
-
-						if (t == int.class) {
-							set(f.getName(), f.getInt(null));
-						} else if (t == long.class) {
-							set(f.getName(), f.getLong(null));
-						} else if (t == float.class) {
-							set(f.getName(), f.getFloat(null));
-						} else if (t == double.class) {
-							set(f.getName(), f.getDouble(null));
-						} else if (t == boolean.class) {
-							set(f.getName(), f.getBoolean(null));
-						}
-					}
-				} catch (Exception e) {
-					System.out.println("Unable to save setting: " + f.getName() + "");
-					e.printStackTrace();
-				}
-			}
-		}
+		// Browser build: no field-reflection (TeaVM 0.6.1 lacks Field.getInt/set on primitives); client
+		// settings aren't persisted. TODO: persist to localStorage via an explicit field map.
 	}
 
 	private static void setConfigurationFromProperties() {
-		Field[] fields = Config.class.getDeclaredFields();
-		for (Map.Entry<Object, Object> entry : prop.entrySet()) {
-			for (Field f : fields) {
-				if (f.getName().startsWith("F_"))
-					continue;
-				if (f.getName().equals(entry.getKey())) {
-					try {
-						Class<?> t = f.getType();
-						if (t == int.class) {
-							f.set(null, Integer.parseInt((String) entry.getValue()));
-						} else if (t == float.class) {
-							f.set(null, Float.parseFloat((String) entry.getValue()));
-						} else if (t == double.class) {
-							f.set(null, Double.parseDouble((String) entry.getValue()));
-						} else if (t == boolean.class) {
-							f.set(null, Boolean.parseBoolean((String) entry.getValue()));
-						} else if (t == long.class) {
-							f.set(null, Long.parseLong((String) entry.getValue()));
-						}
-					} catch (IllegalAccessException | IllegalArgumentException e) {
-						e.printStackTrace();
-					}
-					break;
-				}
-			}
-		}
-
+		// Browser build: no field-reflection. Config fields keep their hardcoded defaults; the server
+		// settings that matter (IP/port/name) are read straight from `prop` via getServerIp() etc.
 	}
 
 	static void updateServerConfiguration(Properties newConfig) {

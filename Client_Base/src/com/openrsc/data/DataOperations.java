@@ -15,7 +15,8 @@ public class DataOperations {
 	}
 
 	public static InputStream streamFromPath(String path) throws IOException {
-		return new BufferedInputStream(new FileInputStream(path));
+		// Browser build: the cache location is an HTTP base (the baked cache/ tree), fetched over XHR.
+		return new ByteArrayInputStream(orsc.net.BrowserCache.fetch(path));
 	}
 
 	public static void readFromPath(String path, byte abyte0[], int length) throws IOException {

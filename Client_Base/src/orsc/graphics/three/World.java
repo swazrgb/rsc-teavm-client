@@ -13,7 +13,7 @@ import java.io.File;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
+// ZipFile → BrowserZipFile (XHR + in-memory) for the browser build
 
 
 public final class World {
@@ -48,7 +48,7 @@ public final class World {
 	private Sector[] worldMapSector = new Sector[4];
 	private int mapPointX = 0;
 	private int mapPointZ = 0;
-	private ZipFile tileArchive;
+	private orsc.graphics.two.BrowserZipFile tileArchive;
 	private Sector[] sectors;
 	public String mapHash;
 
@@ -81,11 +81,11 @@ public final class World {
 					path = Config.F_CACHE_DIR + File.separator + "video" + File.separator + "Custom_Landscape.orsc";
 				else
 					path = Config.F_CACHE_DIR + File.separator + "video" + File.separator + "Authentic_Landscape.orsc";
-				tileArchive = new ZipFile(new File(path));
+				tileArchive = new orsc.graphics.two.BrowserZipFile(path);
 				mapHash = generateMapHash(path);
 			} catch (Exception e) {
 				e.printStackTrace();
-				System.exit(1);
+				// System.exit(1); // browser: cannot exit process
 			}
 
 		} catch (RuntimeException var4) {
@@ -1898,7 +1898,7 @@ public final class World {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.exit(1);
+			// System.exit(1); // browser: cannot exit process
 		}
 		worldMapSector[sector] = s;
 	}
@@ -1922,7 +1922,7 @@ public final class World {
 			}
 		} catch (Exception e) {
 			e.printStackTrace();
-			System.exit(1);
+			// System.exit(1); // browser: cannot exit process
 		}
 		sectors[sector] = s;
 	}

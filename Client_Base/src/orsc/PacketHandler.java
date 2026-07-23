@@ -13,6 +13,7 @@ import orsc.graphics.gui.SocialLists;
 import orsc.graphics.three.RSModel;
 import orsc.multiclient.ClientPort;
 import orsc.net.Network_Socket;
+import orsc.net.WebSocketConn;
 import orsc.util.FastMath;
 import orsc.util.GenUtil;
 import orsc.util.StringUtil;
@@ -143,13 +144,16 @@ public class PacketHandler {
 		}
 	}
 
-	public final Socket openSocket(int port, String host) throws IOException {
-		Socket s = new Socket(InetAddress.getByName(host), port);
-		//s.setSendBufferSize(25000);
-		//s.setReceiveBufferSize(25000);
-		s.setSoTimeout(30000);
-		s.setTcpNoDelay(true);
-		return s;
+	public final WebSocketConn openSocket(int port, String host) throws IOException {
+		// Browser build: the RSC socket is a WebSocket. Connect to the URL resolved from ?server (a full
+		// ws(s):// URL or host:port shorthand); with neither set, build one from the host/port the client
+		// picked (Config override or the cache's ip.txt/port.txt), exactly like the desktop client.
+		String url = BrowserRuntime.serverUrl != null
+			? BrowserRuntime.serverUrl
+			: WebSocketConn.serverUrl(host, port);
+		WebSocketConn conn = new WebSocketConn(url);
+		conn.connect();
+		return conn;
 	}
 
 	public RSBuffer_Bits getPacketsIncoming() {

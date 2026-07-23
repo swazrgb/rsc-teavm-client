@@ -6,7 +6,6 @@ import orsc.util.GenUtil;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.net.Socket;
 
 public final class Network_Socket extends Network_Base implements Runnable {
 	private final byte[] tmpRead = new byte[1];
@@ -14,14 +13,14 @@ public final class Network_Socket extends Network_Base implements Runnable {
 	private InputStream inStream;
 	private boolean m_X = true;
 	private OutputStream outStream;
-	private Socket sock;
+	private WebSocketConn sock;
 	private byte[] writeBuffer;
 
 	private int writeBufRead = 0;
 
 	private int writeBufWrite = 0;
 
-	public Network_Socket(Socket sock, PacketHandler var2) throws IOException {
+	public Network_Socket(WebSocketConn sock, PacketHandler var2) throws IOException {
 		try {
 			this.sock = sock;
 			this.inStream = sock.getInputStream();

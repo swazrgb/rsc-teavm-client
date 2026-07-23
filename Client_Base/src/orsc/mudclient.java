@@ -43,10 +43,6 @@ import orsc.util.Utils;
 import java.io.*;
 //import java.lang.management.ManagementFactory; //Commented out for Android
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.security.SecureRandom;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.Map.Entry;
 import java.util.regex.Matcher;
@@ -763,44 +759,20 @@ public final class mudclient implements Runnable {
 		initConfig();
 	}
 
+	// Browser build: no local clientSettings.conf. FileInputStream/FileOutputStream don't exist and
+	// Properties.store()/load() use the ISO8859_1 charset alias TeaVM doesn't know — so these are
+	// no-ops. The in-memory scaling/zoom change still applies for the session; it just doesn't persist.
 	private static void saveScalingSettings(ScalingAlgorithm type, float scalar) {
-		Properties props = new Properties();
-		props.setProperty("scaling_type", String.valueOf(type.ordinal()));
-		props.setProperty("scaling_scalar", String.valueOf(scalar));
-
-		try (FileOutputStream out = new FileOutputStream("./clientSettings.conf")) {
-			props.store(out, "Client settings");
-		} catch (Exception e) {
-			System.out.println("Something went wrong saving scaling settings");
-			e.printStackTrace();
-		}
 	}
 
 	private static void saveClientSetting(String key, String value) {
-		Properties props = loadClientSettings();
-		props.setProperty(key, value);
-
-		saveClientSettings(props);
 	}
 
 	private static Properties loadClientSettings() {
-		Properties props = new Properties();
-		try (FileInputStream in = new FileInputStream("./clientSettings.conf")) {
-			props.load(in);
-		} catch (IOException e) {
-			System.out.println("Error loading client settings.");
-			e.printStackTrace();
-		}
-		return props;
+		return new Properties();
 	}
 
 	private static void saveClientSettings(Properties props) {
-		try (FileOutputStream out = new FileOutputStream("./clientSettings.conf")) {
-			props.store(out, "Client settings");
-		} catch (IOException e) {
-			System.out.println("Something went wrong saving client settings");
-			e.printStackTrace();
-		}
 	}
 
 	private static boolean isValidEmailAddress(String email) {
@@ -902,40 +874,17 @@ public final class mudclient implements Runnable {
 	}
 
 	public byte[] unpackData(String filename, String fileTitle, int startPercentage) {
-		int decmp_len = 0;
-		int cmp_len = 0;
-		byte[] data = null;
+		// Browser build: the baked pack/ assets already hold these RSC .jag archives (BZh1-headerless
+		// bzip2) decompressed whole (see CacheBaker), so we skip the client-side BZIP2 decode
+		// (DataFileDecrypter) here — faster load. BrowserZipFile fetches + gunzips the flat container
+		// and returns the decompressed body as its sole entry; take it.
+		clientPort.showLoadingProgress(startPercentage, "Loading " + fileTitle);
 		try {
-			clientPort.showLoadingProgress(startPercentage, "Loading " + fileTitle + " - 0%");
-			java.io.InputStream inputstream = DataOperations.streamFromPath(clientPort.getCacheLocation() + filename);
-			DataInputStream datainputstream = new DataInputStream(inputstream);
-			byte[] headers = new byte[6];
-			datainputstream.readFully(headers, 0, 6);
-			decmp_len = ((headers[0] & 0xFF) << 16) + ((headers[1] & 0xFF) << 8) + (headers[2] & 0xFF);
-			cmp_len = ((headers[3] & 0xFF) << 16) + ((headers[4] & 0xFF) << 8) + (headers[5] & 0xFF);
-			clientPort.showLoadingProgress(startPercentage, "Loading " + fileTitle + " - 5%");
-			int l = 0;
-			data = new byte[cmp_len];
-			while (l < cmp_len) {
-				int i1 = cmp_len - l;
-				if (i1 > 1000)
-					i1 = 1000;
-				datainputstream.readFully(data, l, i1);
-				l += i1;
-				clientPort.showLoadingProgress(startPercentage,
-					"Loading " + fileTitle + " - " + (5 + l * 95 / cmp_len) + "%");
-			}
-			datainputstream.close();
+			return new orsc.graphics.two.BrowserZipFile(filename).soleEntry();
 		} catch (IOException _ex) {
 			_ex.printStackTrace();
+			return null;
 		}
-		clientPort.showLoadingProgress(startPercentage, "Unpacking " + fileTitle);
-		if (cmp_len != decmp_len) {
-			byte[] buffer = new byte[decmp_len];
-			DataFileDecrypter.unpackData(buffer, decmp_len, data, cmp_len, 0);
-			return buffer;
-		}
-		return data;
 	}
 
 	@Override
@@ -1081,7 +1030,10 @@ public final class mudclient implements Runnable {
 						if (this.currentViewMode == GameMode.LOGIN) {
 							this.createLoginPanels(3845);
 							scalarChangedSinceLogin = false;
-							//this.renderLoginScreenViewports(-116);
+							// Re-capture the login background scene at the new size — createLoginPanels only
+							// repositions the panels; without this the captured spriteVerts keep their old
+							// dimensions and the background is mis-sized after a window resize.
+							this.renderLoginScreenViewports(-116);
 						}
 						continue;
 					}
@@ -7244,7 +7196,7 @@ public final class mudclient implements Runnable {
 		long timePassed = 0;
 		if (C_EXPERIENCE_COUNTER_MODE == 1 || skill < 0) {
 			for (int i = 0; i < skillCount; i++) {
-				totalXp += Integer.toUnsignedLong(this.playerExperience[i]);
+				totalXp += (this.playerExperience[i] & 0xFFFFFFFFL);
 			}
 
 			int stringWid = getSurface().stringWidth(3, "Total: " + totalXp);
@@ -9550,7 +9502,10 @@ public final class mudclient implements Runnable {
 		// rendering scalar - byte index 45
 
 		int scalarOptionIdx = wantMembers() ? 2 : 1;
-		boolean isScalarOptionOffered = !isAndroid();
+		// integerScalars/interpolationScalars are null in the browser build (it renders at native window
+		// resolution, not by upscaling a fixed 512x346 base), so the scaling option is hidden there
+		// rather than showing a dead control.
+		boolean isScalarOptionOffered = !isAndroid() && integerScalars != null;
 		boolean isScalarOptionShowing = panelSettings.controlScrollAmount[0] <= scalarOptionIdx && isScalarOptionOffered;
 
 		if (isScalarOptionOffered) {
@@ -10057,7 +10012,7 @@ public final class mudclient implements Runnable {
 		/* rendering scalar - (would be byte index 45) */
 
 		int scalarOptionIdx = wantMembers() ? 2 : 1;
-		boolean isScalarOptionShowing = !isAndroid() && panelSettings.controlScrollAmount[0] <= scalarOptionIdx;
+		boolean isScalarOptionShowing = !isAndroid() && integerScalars != null && panelSettings.controlScrollAmount[0] <= scalarOptionIdx;
 
 		if (isScalarOptionShowing) {
 			int yPos = yFromTopDistance + ((scalarOptionIdx - panelSettings.controlScrollAmount[0] + 1) * 15);
@@ -12518,7 +12473,6 @@ public final class mudclient implements Runnable {
 				--this.m_Zb;
 			}
 
-
 			if (this.loginScreenNumber != 0) {
 				if (loginScreenNumber == 1) {
 					menuNewUser.handleMouse(this.mouseX, this.mouseY, this.currentMouseButtonDown,
@@ -14253,7 +14207,7 @@ public final class mudclient implements Runnable {
 			PrintWriter printWriter;
 			if (!uID.exists()) {
 				printWriter = new PrintWriter(new FileOutputStream(uID), true);
-				long uuID = new SecureRandom().nextLong();
+				long uuID = new java.util.Random().nextLong();
 				printWriter.println(uuID);
 				printWriter.flush();
 				uID.setReadOnly();
@@ -14561,19 +14515,10 @@ public final class mudclient implements Runnable {
 	}
 
 	private void loadSounds() {
-		try {
-			File folder = new File(F_CACHE_DIR, "audio");
-			File[] listOfFiles = folder.listFiles();
-
-			for (int i = 0; i < listOfFiles.length; i++)
-				if (listOfFiles[i].isFile() && listOfFiles[i].getName().endsWith(".wav")) {
-					soundCache.put(listOfFiles[i].getName().toLowerCase(), listOfFiles[i]);
-				}
-
-			byte[] soundData = unpackData("audio" + File.separator + "sounds.mem", "Sound effects", 90);
-		} catch (Exception ex) {
-			ex.printStackTrace();
-		}
+		// Sounds play on demand: soundPlayer.playSoundFile(name) fetches audio/<name>.wav via Web Audio
+		// (see soundPlayer, whose context is opened at startup), so there's nothing to preload here. The
+		// legacy packed audio/sounds.mem is deliberately not fetched/unpacked — OpenRSC plays the
+		// individual .wav files instead, and decoding sounds.mem cost ~260ms of main-thread time.
 	}
 
 	private void loadTextures() {
@@ -14801,7 +14746,7 @@ public final class mudclient implements Runnable {
 						String jarName = "";
 						try {
 							String className = this.getClass().getName().replace('.', '/');
-							String classJar = this.getClass().getResource("/" + className + ".class") != null ? this.getClass().getResource("/" + className + ".class").toString() : "unknown";
+							String classJar = "unknown"; // browser build: not running from a jar
 							if (classJar.startsWith("jar:")) {
 								runningFromJar = true;
 								String path = classJar.substring(4, classJar.indexOf("!"));
@@ -14811,7 +14756,7 @@ public final class mudclient implements Runnable {
 								if (path.startsWith("file:")) {
 									path = path.substring(5);
 								}
-								jarName = Paths.get(path).getFileName().toString();
+								jarName = path.substring(path.lastIndexOf(0x2F) + 1);
 								if (jarName.length() > 19) {
 									jarName = jarName.substring(0, 19);
 								}
@@ -14826,6 +14771,9 @@ public final class mudclient implements Runnable {
 						String programArgsStr = programArgs != null && programArgs.length > 1 ? String.join(" ", programArgs) : "";
 
 						String workingDir = System.getProperty("user.dir");
+						if (workingDir == null) { // browser: no working directory
+							workingDir = "browser";
+						}
 						if (workingDir.length() > 38) {
 							String[] pathParts = workingDir.split(Pattern.quote(File.separator));
 							if (pathParts.length > 2) {
@@ -14839,8 +14787,10 @@ public final class mudclient implements Runnable {
 						if (jarName.isEmpty() && workingDir.length() < 2) {
 							workingDir = "Unknown";
 						}
-						String osName = System.getProperty("os.name").toLowerCase();
-						String javaVendor = System.getProperty("java.vendor").toLowerCase();
+						String osNameProp = System.getProperty("os.name");
+						String osName = (osNameProp == null ? "browser" : osNameProp).toLowerCase();
+						String javaVendorProp = System.getProperty("java.vendor");
+						String javaVendor = (javaVendorProp == null ? "teavm" : javaVendorProp).toLowerCase();
 						boolean isAndroid = osName.contains("android") || javaVendor.contains("android");
 						if (isAndroid) {
 							workingDir = "Android";
@@ -14886,7 +14836,6 @@ public final class mudclient implements Runnable {
 						// this.clientStream.seedIsaac(isaacSeed);
 						int loginResponse = this.packetHandler.getClientStream().read();
 
-						System.out.println("login response:" + loginResponse);
 						if ((loginResponse & 0x40) != 0) {
 							this.autoLoginTimeout = 0;
 							this.m_Ce = loginResponse & 0x3;
@@ -15672,8 +15621,8 @@ public final class mudclient implements Runnable {
 		final String ANSI_CYAN = "\u001B[36m";
 		final String ANSI_WHITE = "\u001B[37m";
 
-		final DateTimeFormatter dateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss");
-		final LocalDateTime now = LocalDateTime.now();
+		final java.text.SimpleDateFormat dateTimeFormatter = new java.text.SimpleDateFormat("HH:mm:ss");
+		final java.util.Date now = new java.util.Date();
 		final String currentTime = dateTimeFormatter.format(now);
 
 		// Strip all the freaking color codes
