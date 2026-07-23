@@ -3,8 +3,6 @@
 A [TeaVM](https://teavm.org/) build of the **OpenRSC custom client** ([Client_Base](https://gitlab.com/openrsc/openrsc/-/tree/develop/Client_Base)) that compiles
 the Java client to JavaScript so it runs in a web browser.
 
-**▶ Demo: <https://swazrgb.github.io/rsc-teavm-client/>**
-
 It is a near-verbatim port of the desktop client from
 [OpenRSC](https://gitlab.com/openrsc/openrsc): the browser build reuses the client's rendering,
 model/animation and game logic unchanged, and only swaps out the platform edges a browser can't
